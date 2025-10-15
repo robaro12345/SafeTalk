@@ -1,16 +1,63 @@
 import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
+import config from '../config/index.js';
 
-export function generateTOTPSecret(label) {
-  const secret = speakeasy.generateSecret({ length: 20, name: `${process.env.TOTP_ISSUER || 'SafeTalk'}:${label}` });
-  const otpauth_url = secret.otpauth_url;
-  return { base32: secret.base32, otpauth_url };
-}
+/**
+ * Generate TOTP secret for user
+ */
+export const generateTOTPSecret = (userEmail) => {
+  try {
+    const secret = speakeasy.generateSecret({
+      name: `${config.app.name} (${userEmail})`,
+      issuer: config.app.name,
+      length: 32
+    });
+    
+    return {
+      secret: secret.base32,
+      otpauthUrl: secret.otpauth_url
+    };
+  } catch (error) {
+    throw new Error('Failed to generate TOTP secret');
+  }
+};
 
-export async function qrCodeDataURL(otpauth_url) {
-  return await qrcode.toDataURL(otpauth_url);
-}
+/**
+ * Generate QR Code for TOTP setup
+ */
+export const generateQRCode = async (otpauthUrl) => {
+  try {
+    const qrCodeDataURL = await qrcode.toDataURL(otpauthUrl);
+    return qrCodeDataURL;
+  } catch (error) {
+    throw new Error('Failed to generate QR code');
+  }
+};
 
-export function verifyTOTP({ secret, token }) {
-  return speakeasy.totp.verify({ secret, encoding: 'base32', token, window: 1 });
-}
+/**
+ * Verify TOTP token
+ */
+export const verifyTOTP = (secret, token) => {
+  try {
+    return speakeasy.totp.verify({
+      secret: secret,
+      encoding: 'base32',
+      token: token,
+      window: 2 // Allow 2 steps before and after current time
+    });
+  } catch (error) {
+    throw new Error('Failed to verify TOTP');
+  }
+};
+
+/**
+ * Generate backup codes for TOTP
+ */
+export const generateBackupCodes = () => {
+  const codes = [];
+  for (let i = 0; i < 8; i++) {
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    codes.push(code);
+  }
+  return codes;
+};

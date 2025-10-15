@@ -1,0 +1,235 @@
+import React, { useState, useEffect } from 'react';
+import { Search, Plus, MoreHorizontal } from 'lucide-react';
+import { messageAPI, userAPI } from '../utils/api';
+import toast from 'react-hot-toast';
+
+const ChatList = ({ onSelectChat, selectedChatId, onNewChat }) => {
+  const [conversations, setConversations] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load conversations
+  useEffect(() => {
+    loadConversations();
+  }, []);
+
+  // Search users when search term changes
+  useEffect(() => {
+    if (searchTerm.length > 2) {
+      searchUsers();
+    } else {
+      setSearchResults([]);
+      setIsSearching(false);
+    }
+  }, [searchTerm]);
+
+  const loadConversations = async () => {
+    try {
+      const response = await messageAPI.getConversations();
+      setConversations(response.data.data.conversations);
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+      toast.error('Failed to load conversations');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const searchUsers = async () => {
+    try {
+      setIsSearching(true);
+      const response = await userAPI.searchUsers(searchTerm);
+      setSearchResults(response.data.data.users);
+    } catch (error) {
+      console.error('Search failed:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const formatMessagePreview = (message) => {
+    if (message.messageType === 'text') {
+      return message.lastMessage?.content || message.lastMessage?.decryptedContent || 'Message';
+    } else {
+      return ` ${message.messageType}`;
+    }
+  };
+
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffTime = now - date;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return date.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      });
+    } else if (diffDays === 1) {
+      return 'Yesterday';
+    } else if (diffDays < 7) {
+      return date.toLocaleDateString('en-US', { weekday: 'short' });
+    } else {
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric' 
+      });
+    }
+  };
+
+  const handleChatSelect = (chat) => {
+    if (chat.otherUser) {
+      // Existing conversation
+      onSelectChat(chat.otherUser);
+    } else {
+      // New user from search
+      onSelectChat(chat);
+      setSearchTerm('');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="w-80 bg-white border-r border-gray-200 flex items-center justify-center">
+        <div className="text-gray-500">Loading conversations...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-bold text-gray-900">SafeTalk</h1>
+          <button
+            onClick={() => onNewChat?.()}
+            className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+            title="New Chat"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search users..."
+            className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:bg-white border border-transparent focus:border-green-500"
+          />
+        </div>
+      </div>
+
+      {/* Chat List */}
+      <div className="flex-1 overflow-y-auto">
+        {searchTerm && (
+          <div className="p-3">
+            <div className="text-sm font-medium text-gray-500 mb-2">
+              {isSearching ? 'Searching...' : 'Search Results'}
+            </div>
+            {searchResults.length > 0 ? (
+              searchResults.map((user, idx) => (
+                <div
+                  key={user.id || idx}
+                  onClick={() => handleChatSelect(user)}
+                  className="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                >
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                    <span className="font-semibold text-green-600">
+                      {user.username.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900 truncate">
+                      {user.username}
+                    </div>
+                    <div className="text-sm text-gray-500 truncate">
+                      {user.email}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : !isSearching && searchTerm.length > 2 ? (
+              <div className="text-center py-4 text-gray-500">
+                No users found
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {!searchTerm && (
+          <div>
+            {conversations.length > 0 ? (
+              conversations.map((conversation, idx) => (
+                <div
+                  key={conversation.otherUser?.id || idx}
+                  onClick={() => handleChatSelect(conversation)}
+                  className={`flex items-center p-4 hover:bg-gray-50 cursor-pointer transition-colors border-l-4 ${
+                    selectedChatId === conversation.otherUser.id
+                      ? 'bg-green-50 border-l-green-500'
+                      : 'border-l-transparent'
+                  }`}
+                >
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                    <span className="font-semibold text-green-600 text-lg">
+                      {conversation.otherUser.username.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="font-semibold text-gray-900 truncate">
+                        {conversation.otherUser.username}
+                      </h3>
+                      <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                        {formatTimestamp(conversation.lastMessage.timestamp)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-gray-600 truncate">
+                        {conversation.lastMessage.isFromMe && (
+                          <span className="mr-1">
+                            {conversation.lastMessage.status === 'read' ? '✓✓' : 
+                             conversation.lastMessage.status === 'delivered' ? '✓' : '○'}
+                          </span>
+                        )}
+                        {formatMessagePreview(conversation.lastMessage)}
+                      </p>
+                      
+                      {conversation.unreadCount > 0 && (
+                        <span className="bg-green-500 text-white text-xs rounded-full px-2 py-1 min-w-[1.25rem] h-5 flex items-center justify-center ml-2">
+                          {conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center h-64 text-gray-500">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <Plus className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="font-medium text-lg mb-2">No conversations yet</h3>
+                <p className="text-center text-sm px-4">
+                  Start a new conversation by searching for users above
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ChatList;

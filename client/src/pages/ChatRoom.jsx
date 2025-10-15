@@ -1,115 +1,445 @@
-import { useEffect, useMemo, useState } from 'react';
-import io from 'socket.io-client';
-import axios from 'axios';
-import ChatBox from '../components/ChatBox.jsx';
-import { importPublicKeyFromBase64, deriveAESKeyFromPassword, decryptPrivateKey, generateAESKey, encryptMessage, wrapAESKeyWithRSA, decryptMessage, unwrapAESKeyWithRSA } from '../lib/crypto.js';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MoreVertical, Shield, Phone, Video, Search, Settings, LogOut, User } from 'lucide-react';
+import ChatList from '../components/ChatList';
+import MessageBubble from '../components/MessageBubble';
+import InputBox from '../components/InputBox';
+import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../hooks/useSocket';
+import { messageAPI, apiUtils, userAPI } from '../utils/api';
+// Encryption removed: messages are sent as plain content
+import toast from 'react-hot-toast';
 
-const API = import.meta.env.VITE_API_BASE;
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
-
-export default function ChatRoom() {
-  const [receiverUsername, setReceiverUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [unlocked, setUnlocked] = useState(false);
-  const [recipient, setRecipient] = useState(null); // {id, username, publicKey}
-  const [privateKey, setPrivateKey] = useState(null);
+const ChatRoom = () => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const socket = useSocket();
+  
+  const [selectedChat, setSelectedChat] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [typingUsers, setTypingUsers] = useState(new Set());
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showChatMenu, setShowChatMenu] = useState(false);
+  
+  const messagesEndRef = useRef(null);
+  const userMenuRef = useRef(null);
+  const chatMenuRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
-  const token = localStorage.getItem('accessToken');
+  // No encryption keys used anymore
+  const getEncryptionKeys = () => ({ });
 
-  const socket = useMemo(() => {
-    if (!token) return null;
-    return io(SOCKET_URL, { auth: { token } });
-  }, [token]);
+  // Auto-scroll to bottom of messages
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
-    if (!socket) return;
-    socket.on('message:receive', async (payload) => {
-      // Try to decrypt if private key is unlocked
-      if (privateKey) {
-        try {
-          const aesKey = await unwrapAESKeyWithRSA(payload.encryptedKey, privateKey);
-          const text = await decryptMessage(payload.ciphertext, payload.iv, aesKey);
-          setMessages((prev) => [...prev, { ...payload, text, fromSelf: false }]);
-          return;
-        } catch {}
+    scrollToBottom();
+  }, [messages]);
+
+  // Handle chat selection
+  const handleChatSelect = async (chatUser) => {
+    setSelectedChat(chatUser);
+    setMessages([]);
+    
+    if (chatUser.id) {
+      // Join conversation room
+      socket.joinConversation(chatUser.id);
+      
+      // Load conversation history
+      await loadMessages(chatUser.id);
+    }
+  };
+
+  // Load messages for a conversation
+  const loadMessages = async (userId) => {
+    try {
+      setIsLoadingMessages(true);
+      const response = await messageAPI.getConversation(userId);
+      const conversationMessages = response.data.data.messages;
+      
+      // Messages are stored as plain content
+      const plainMessages = conversationMessages.map(m => ({ ...m, decryptedContent: m.content || m.text || null, decryptionError: false }));
+      setMessages(plainMessages);
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+      toast.error('Failed to load conversation');
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
+  // Decrypt message content
+  // No decryption required; messages come as plain content
+  const decryptMessageContent = async (message) => {
+    return message.content || message.text || null;
+  };
+
+  // Send message
+  const handleSendMessage = async (messageText) => {
+    if (!selectedChat || !messageText.trim()) return;
+
+    try {
+      // Create message data (plaintext)
+      const messageData = {
+        receiverId: selectedChat.id || selectedChat._id,
+        content: messageText,
+        messageType: 'text',
+        tempId: Date.now().toString() // For optimistic updates
+      };
+      
+      // Add optimistic message to UI
+      const optimisticMessage = {
+        id: messageData.tempId,
+        sender: { id: user.id, username: user.username },
+        receiver: { id: selectedChat.id || selectedChat._id },
+        decryptedContent: messageText,
+        content: messageText,
+        timestamp: new Date().toISOString(),
+        status: 'sending',
+        tempId: messageData.tempId
+      };
+      
+      setMessages(prev => [...prev, optimisticMessage]);
+      
+  // Debug: log messageData before sending
+  console.log('Sending messageData to backend:', messageData);
+  // Send via socket for real-time delivery
+  socket.sendMessage(messageData);
+      
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      toast.error('Failed to send message');
+    }
+  };
+
+  // Handle typing indicators
+  const handleTyping = (isTyping) => {
+    if (selectedChat) {
+      if (isTyping) {
+        socket.startTyping(selectedChat.id);
+      } else {
+        socket.stopTyping(selectedChat.id);
       }
-      setMessages((prev) => [...prev, { ...payload, fromSelf: false }]);
-    });
-    return () => {
-      socket.off('message:receive');
-      socket.disconnect();
+    }
+  };
+
+  // Socket event handlers
+  useEffect(() => {
+    if (!socket.isConnected) return;
+
+    // Handle new messages
+    const handleNewMessage = async (messageData) => {
+      try {
+          const decryptedContent = await decryptMessageContent(messageData);
+          const newMessage = {
+            ...messageData,
+            decryptedContent,
+            content: decryptedContent,
+            decryptionError: false
+          };
+        
+        setMessages(prev => {
+          // Remove any existing message with the same tempId
+          const filtered = prev.filter(msg => msg.tempId !== messageData.tempId);
+          return [...filtered, newMessage];
+        });
+        
+        // Mark as read if chat is currently selected
+        if (selectedChat && messageData.sender.id === selectedChat.id) {
+          socket.markMessageAsRead(messageData.id, messageData.sender.id);
+        }
+      } catch (error) {
+        console.error('Failed to decrypt received message:', error);
+      }
     };
-  }, [socket, privateKey]);
 
-  const unlock = async () => {
-    try {
-      const username = localStorage.getItem('st_username');
-      const enc = localStorage.getItem('st_encrypted_private_key');
-      const iv = localStorage.getItem('st_encrypted_private_key_iv');
-      const aesKey = await deriveAESKeyFromPassword(password, username);
-      const pk = await decryptPrivateKey(enc, iv, aesKey);
-      setPrivateKey(pk);
-      setUnlocked(true);
-    } catch (e) {
-      alert('Failed to unlock private key');
+    // Handle message sent confirmation
+    const handleMessageSent = (messageData) => {
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.tempId === messageData.tempId 
+            ? { ...msg, id: messageData.id, status: 'sent' }
+            : msg
+        )
+      );
+    };
+
+    // Handle message errors
+    const handleMessageError = (errorData) => {
+      toast.error(errorData.message || 'Failed to send message');
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.tempId === errorData.tempId 
+            ? { ...msg, status: 'failed' }
+            : msg
+        )
+      );
+    };
+
+    // Handle typing indicators
+    const handleUserTyping = (data) => {
+      if (selectedChat && data.userId === selectedChat.id) {
+        setTypingUsers(prev => {
+          const newSet = new Set(prev);
+          if (data.isTyping) {
+            newSet.add(data.username);
+          } else {
+            newSet.delete(data.username);
+          }
+          return newSet;
+        });
+        
+        // Clear typing indicator after delay
+        if (data.isTyping) {
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => {
+            setTypingUsers(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(data.username);
+              return newSet;
+            });
+          }, 3000);
+        }
+      }
+    };
+
+    // Handle read receipts
+    const handleMessageReadReceipt = (data) => {
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === data.messageId 
+            ? { ...msg, status: 'read' }
+            : msg
+        )
+      );
+    };
+
+    // Register socket event listeners
+    socket.onNewMessage(handleNewMessage);
+    socket.onMessageSent(handleMessageSent);
+    socket.onMessageError(handleMessageError);
+    socket.onUserTyping(handleUserTyping);
+    socket.onMessageReadReceipt(handleMessageReadReceipt);
+
+    return () => {
+      // Cleanup is handled by the socket hook
+    };
+  }, [socket.isConnected, selectedChat]);
+
+  // Handle user menu clicks
+  const handleUserMenuClick = (action) => {
+    setShowUserMenu(false);
+    
+    switch (action) {
+      case 'profile':
+        navigate('/profile');
+        break;
+      case 'settings':
+        navigate('/settings');
+        break;
+      case 'logout':
+        logout();
+        break;
     }
   };
 
-  const findRecipient = async () => {
-    const { data } = await axios.get(`${API}/auth/users/${receiverUsername}`, { headers: { Authorization: `Bearer ${token}` } });
-    setRecipient(data);
-  };
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+      if (chatMenuRef.current && !chatMenuRef.current.contains(event.target)) {
+        setShowChatMenu(false);
+      }
+    };
 
-  const sendMessage = async () => {
-    if (!recipient) return alert('Choose a recipient first');
-    try {
-      // Encrypt message: generate AES key, encrypt text, wrap AES key with recipient public key
-      const publicKey = await importPublicKeyFromBase64(recipient.publicKey);
-      const aesKey = await generateAESKey();
-      const { ciphertext, iv } = await encryptMessage(input, aesKey);
-      const wrapped = await wrapAESKeyWithRSA(aesKey, publicKey);
-
-      // Persist via REST
-      await axios.post(`${API}/messages/send`, {
-        receiverId: recipient.id,
-        ciphertext,
-        encryptedKey: wrapped,
-        iv,
-      }, { headers: { Authorization: `Bearer ${token}` } });
-
-      setMessages((prev) => [...prev, { to: recipient.id, text: input, fromSelf: true, timestamp: Date.now() }]);
-      setInput('');
-    } catch (e) {
-      alert('Send failed');
-    }
-  };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
-    <div className="space-y-4">
-      <div className="card space-y-2">
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <label className="block text-sm">Recipient username</label>
-            <input className="input" value={receiverUsername} onChange={(e)=>setReceiverUsername(e.target.value)} placeholder="e.g. alice" />
+    <div className="h-screen bg-gray-100 flex">
+      {/* Chat List Sidebar */}
+      <ChatList 
+        onSelectChat={handleChatSelect}
+        selectedChatId={selectedChat?.id}
+      />
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {selectedChat ? (
+          <>
+            {/* Chat Header */}
+            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                  <span className="font-semibold text-green-600">
+                    {selectedChat.username.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-900">{selectedChat.username}</h2>
+                  <p className="text-sm text-gray-500">
+                    {typingUsers.size > 0 ? (
+                      <span className="text-green-600">
+                        {Array.from(typingUsers).join(', ')} typing...
+                      </span>
+                    ) : (
+                      'Click to view profile'
+                    )}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg">
+                  <Search className="w-5 h-5" />
+                </button>
+                <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg">
+                  <Phone className="w-5 h-5" />
+                </button>
+                <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg">
+                  <Video className="w-5 h-5" />
+                </button>
+                
+                <div className="relative" ref={chatMenuRef}>
+                  <button 
+                    onClick={() => setShowChatMenu(!showChatMenu)}
+                    className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                  
+                  {showChatMenu && (
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                      <button className="w-full px-4 py-2 text-left hover:bg-gray-50 rounded-t-lg">
+                        View Contact Info
+                      </button>
+                      <button className="w-full px-4 py-2 text-left hover:bg-gray-50">
+                        Clear Chat
+                      </button>
+                      <button className="w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600 rounded-b-lg">
+                        Block User
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {/* Encryption Notice */}
+              <div className="flex justify-center">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-2 flex items-center space-x-2 text-sm text-yellow-800">
+                  <Shield className="w-4 h-4" />
+                  <span>Messages are end-to-end encrypted</span>
+                </div>
+              </div>
+
+              {/* Message Loading */}
+              {isLoadingMessages && (
+                <div className="flex justify-center">
+                  <div className="text-gray-500">Loading messages...</div>
+                </div>
+              )}
+
+              {/* Messages */}
+              {messages.map((message, index) => (
+                <MessageBubble
+                  key={message.id || message.tempId || index}
+                  message={message}
+                  isOwn={message.sender.id === user.id}
+                />
+              ))}
+
+              {/* Typing Indicator */}
+              {typingUsers.size > 0 && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-200 rounded-2xl rounded-bl-sm px-4 py-2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Box */}
+            <InputBox 
+              onSendMessage={handleSendMessage}
+              onTyping={handleTyping}
+            />
+          </>
+        ) : (
+          /* Welcome Screen */
+          <div className="flex-1 flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Shield className="w-12 h-12 text-green-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Welcome to SafeTalk
+              </h2>
+              <p className="text-gray-600 mb-6 max-w-md">
+                Select a conversation from the sidebar to start messaging securely with end-to-end encryption.
+              </p>
+              <div className="space-y-2 text-sm text-gray-500">
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>End-to-end encrypted</span>
+                </div>
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Two-factor authentication</span>
+                </div>
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Zero-knowledge architecture</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <button className="btn" onClick={findRecipient}>Load</button>
-          {recipient && <span>→ {recipient.username}</span>}
-        </div>
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <label className="block text-sm">Unlock with password</label>
-            <input className="input" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} placeholder="Account password" />
-          </div>
-          <button className="btn" onClick={unlock} disabled={unlocked}>{unlocked ? 'Unlocked' : 'Unlock'}</button>
-        </div>
+        )}
       </div>
-      <ChatBox messages={messages} />
-      <div className="flex gap-2">
-        <input className="input flex-1" value={input} onChange={(e)=>setInput(e.target.value)} placeholder="Type a message..." />
-        <button className="btn" onClick={sendMessage}>Send</button>
-      </div>
+
+      {/* User Menu */}
+      {showUserMenu && (
+        <div className="absolute top-16 right-4 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50" ref={userMenuRef}>
+          <button 
+            onClick={() => handleUserMenuClick('profile')}
+            className="w-full px-4 py-2 text-left hover:bg-gray-50 rounded-t-lg flex items-center space-x-2"
+          >
+            <User className="w-4 h-4" />
+            <span>Profile</span>
+          </button>
+          <button 
+            onClick={() => handleUserMenuClick('settings')}
+            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
+          >
+            <Settings className="w-4 h-4" />
+            <span>Settings</span>
+          </button>
+          <hr className="border-gray-200" />
+          <button 
+            onClick={() => handleUserMenuClick('logout')}
+            className="w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600 rounded-b-lg flex items-center space-x-2"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default ChatRoom;
