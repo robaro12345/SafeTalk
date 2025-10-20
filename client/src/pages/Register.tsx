@@ -242,32 +242,6 @@ const Register = () => {
           </button>
         </form>
 
-        {/* Test Button for Setup2FA Route */}
-        <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-          <p className="text-sm text-yellow-800 mb-2 font-medium">Test Setup2FA Route:</p>
-          <button
-            type="button"
-            onClick={() => {
-              const mockTotpSetup = {
-                secret: 'JBSWY3DPEHPK3PXP',
-                qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-                manualEntryKey: 'JBSWY3DPEHPK3PXP'
-              };
-              
-              navigate('/setup-2fa', {
-                state: { 
-                  totpSetup: mockTotpSetup,
-                  email: 'test@example.com',
-                  username: 'testuser'
-                }
-              });
-            }}
-            className="w-full bg-yellow-600 text-white py-2 rounded-lg font-semibold hover:bg-yellow-700 transition-colors text-sm"
-          >
-            Test Setup2FA Page (Mock Data)
-          </button>
-        </div>
-
         <div className="text-center mt-6">
           <p className="text-gray-600">
             Already have an account?{' '}

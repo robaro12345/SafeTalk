@@ -1,11 +1,56 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { authAPI, apiUtils } from '../utils/api';
+import type { ReactNode } from 'react';
+import { authAPI, userAPI, apiUtils } from '../utils/api';
 import cryptoUtils from '../utils/crypto';
 import socketService from '../utils/socket';
 import toast from 'react-hot-toast';
 
+// Types
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  role?: string;
+  publicKey?: string;
+  twoFAMethod?: string;
+  twoFAEnabled?: boolean;
+}
+
+interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  requiresTwoFA: boolean;
+  twoFAMethod: string | null;
+  pendingUserId: string | null;
+  error: string | null;
+}
+
+interface RegisterData {
+  email: string;
+  username: string;
+  password: string;
+  twoFAMethod: string;
+  publicKey?: string;
+}
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface AuthContextType extends AuthState {
+  register: (userData: RegisterData) => Promise<{ success: boolean; totpSetup?: any; user?: User; error?: string }>;
+  login: (credentials: LoginCredentials) => Promise<{ success: boolean; requiresTwoFA?: boolean; error?: string }>;
+  verify2FA: (code: string, password?: string | null) => Promise<{ success: boolean; error?: string }>;
+  resendOTP: () => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  updateUser: (userData: Partial<User>) => void;
+  clearError: () => void;
+}
+
 // Initial state
-const initialState = {
+const initialState: AuthState = {
   user: null,
   isAuthenticated: false,
   isLoading: true,
@@ -24,10 +69,19 @@ const AUTH_ACTIONS = {
   SET_ERROR: 'SET_ERROR',
   CLEAR_ERROR: 'CLEAR_ERROR',
   UPDATE_USER: 'UPDATE_USER',
-};
+} as const;
+
+type AuthAction =
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'LOGIN_SUCCESS'; payload: { user: User } }
+  | { type: 'LOGIN_REQUIRES_2FA'; payload: { twoFAMethod: string; userId: string } }
+  | { type: 'LOGOUT' }
+  | { type: 'SET_ERROR'; payload: string }
+  | { type: 'CLEAR_ERROR' }
+  | { type: 'UPDATE_USER'; payload: Partial<User> };
 
 // Reducer
-const authReducer = (state, action) => {
+const authReducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
     case AUTH_ACTIONS.SET_LOADING:
       return { ...state, isLoading: action.payload };
@@ -82,10 +136,10 @@ const authReducer = (state, action) => {
 };
 
 // Create context
-const AuthContext = createContext();
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Auth Provider Component
-export const AuthProvider = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   // Initialize auth state from localStorage
@@ -98,7 +152,7 @@ export const AuthProvider = ({ children }) => {
         if (token && userData) {
           // Verify token is still valid by fetching user profile
           try {
-            const response = await authAPI.getProfile?.() || { data: { data: { user: userData } } };
+            const response = await userAPI.getProfile();
             const user = response.data.data.user;
 
             dispatch({
@@ -126,14 +180,14 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Register function
-  const register = async (userData) => {
+  const register = async (userData: RegisterData) => {
     try {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
       dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
 
       // If publicKey is not already provided (e.g. Register page already generated it), generate here
       let publicKeyPem = userData.publicKey || null;
-      let privateKeyJwk = null;
+      let privateKeyJwk: any = null;
 
       if (!publicKeyPem) {
         try {
@@ -187,7 +241,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Login function
-  const login = async (credentials) => {
+  const login = async (credentials: LoginCredentials) => {
     try {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
       dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
@@ -218,7 +272,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Verify 2FA function
-  const verify2FA = async (code, password = null) => {
+  const verify2FA = async (code: string, password: string | null = null) => {
     try {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
       dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
@@ -297,7 +351,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Update user profile
-  const updateUser = (userData) => {
+  const updateUser = (userData: Partial<User>) => {
     dispatch({
       type: AUTH_ACTIONS.UPDATE_USER,
       payload: userData
@@ -311,7 +365,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Context value
-  const value = {
+  const value: AuthContextType = {
     // State
     user: state.user,
     isAuthenticated: state.isAuthenticated,
@@ -339,7 +393,7 @@ export const AuthProvider = ({ children }) => {
 };
 
 // Custom hook to use auth context
-export const useAuth = () => {
+export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');

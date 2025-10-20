@@ -4,7 +4,12 @@ import { Eye, EyeOff, Mail, Lock, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
-const Login = () => {
+interface LocationState {
+  message?: string;
+  email?: string;
+}
+
+const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isLoading, isAuthenticated } = useAuth();
@@ -25,22 +30,23 @@ const Login = () => {
 
   // Show message from registration or other pages and pre-fill email
   useEffect(() => {
-    if (location.state?.message) {
-      toast.success(location.state.message);
+    const state = location.state as LocationState;
+    if (state?.message) {
+      toast.success(state.message);
     }
     
     // Pre-fill email if coming from registration/setup
-    if (location.state?.email) {
-      setFormData(prev => ({ ...prev, email: location.state.email }));
+    if (state?.email) {
+      setFormData(prev => ({ ...prev, email: state.email }));
     }
   }, [location.state]);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const result = await login(formData);
@@ -144,52 +150,11 @@ const Login = () => {
           </div>
         </div>
 
-        {/* Test Buttons for Routes */}
-        <div className="mt-6 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-          <p className="text-sm text-yellow-800 mb-2 font-medium">Test Routes:</p>
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => navigate('/test')}
-              className="w-full bg-red-600 text-white py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm"
-            >
-              Test Basic Route (/test)
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const mockTotpSetup = {
-                  secret: 'JBSWY3DPEHPK3PXP',
-                  qrCode: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-                  manualEntryKey: 'JBSWY3DPEHPK3PXP'
-                };
-                
-                navigate('/setup-2fa', {
-                  state: { 
-                    totpSetup: mockTotpSetup,
-                    email: 'test@example.com',
-                    username: 'testuser'
-                  }
-                });
-              }}
-              className="w-full bg-yellow-600 text-white py-2 rounded-lg font-semibold hover:bg-yellow-700 transition-colors text-sm"
-            >
-              Test Setup2FA Page (Mock Data)
-            </button>
-          </div>
-        </div>
-
         <div className="text-center mt-6 space-y-2">
           <p className="text-gray-600">
             Don't have an account?{' '}
             <Link to="/register" className="text-green-600 font-semibold hover:text-green-700">
               Sign up
-            </Link>
-          </p>
-          <p className="text-gray-600 text-sm">
-            Lost access to your authenticator app?{' '}
-            <Link to="/regenerate-totp" className="text-blue-600 font-semibold hover:text-blue-700">
-              Regenerate TOTP Setup
             </Link>
           </p>
         </div>

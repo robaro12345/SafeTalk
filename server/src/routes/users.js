@@ -41,7 +41,102 @@ router.get('/profile',
           twoFAMethod: user.twoFAMethod,
           publicKey: user.publicKey,
           lastLogin: user.lastLogin,
-          createdAt: user.createdAt
+          createdAt: user.createdAt,
+          isEmailVerified: user.isEmailVerified
+        }
+      }
+    });
+  })
+);
+
+/**
+ * @route   PUT /api/users/profile
+ * @desc    Update current user profile
+ * @access  Private
+ */
+router.put('/profile',
+  authenticateToken,
+  asyncHandler(async (req, res) => {
+    const { username, email } = req.body;
+    const userId = req.user.userId;
+
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Validate username
+    if (username) {
+      if (username.length < 3 || username.length > 30) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username must be between 3 and 30 characters'
+        });
+      }
+      
+      // Check if username is already taken by another user
+      const existingUser = await User.findOne({ 
+        username, 
+        _id: { $ne: userId } 
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username is already taken'
+        });
+      }
+      
+      user.username = username;
+    }
+
+    // Validate email
+    if (email) {
+      const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please enter a valid email'
+        });
+      }
+      
+      // Check if email is already taken by another user
+      const existingUser = await User.findOne({ 
+        email, 
+        _id: { $ne: userId } 
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is already taken'
+        });
+      }
+      
+      user.email = email;
+      user.isEmailVerified = false; // Reset verification if email changes
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile updated successfully',
+      data: {
+        user: {
+          id: user._id,
+          email: user.email,
+          username: user.username,
+          role: user.role,
+          twoFAMethod: user.twoFAMethod,
+          publicKey: user.publicKey,
+          lastLogin: user.lastLogin,
+          createdAt: user.createdAt,
+          isEmailVerified: user.isEmailVerified
         }
       }
     });

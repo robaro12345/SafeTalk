@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MoreVertical, Shield, Phone, Video, Search, Settings, LogOut, User } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import ChatList from '../components/ChatList';
 import MessageBubble from '../components/MessageBubble';
 import InputBox from '../components/InputBox';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
-import { messageAPI, apiUtils, userAPI } from '../utils/api';
+import { messageAPI, userAPI } from '../utils/api';
 import cryptoUtils from '../utils/crypto';
-// Encryption removed: messages are sent as plain content
 import toast from 'react-hot-toast';
 
 const ChatRoom = () => {
@@ -20,12 +19,8 @@ const ChatRoom = () => {
   const [messages, setMessages] = useState([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [typingUsers, setTypingUsers] = useState(new Set());
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showChatMenu, setShowChatMenu] = useState(false);
   
   const messagesEndRef = useRef(null);
-  const userMenuRef = useRef(null);
-  const chatMenuRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
   // No encryption keys used anymore
@@ -286,6 +281,17 @@ const ChatRoom = () => {
           return [...filtered, newMessage];
         });
         
+        // Show notification for new message from sender
+        if (messageData.sender && messageData.sender.username) {
+          // Only show toast if the message is from someone else (not our own message)
+          if (messageData.sender.id !== user.id) {
+            toast.success(`New message from ${messageData.sender.username}`, {
+              duration: 3000,
+              icon: '💬',
+            });
+          }
+        }
+        
         // Mark as read if chat is currently selected
         if (selectedChat && messageData.sender.id === selectedChat.id) {
           socket.markMessageAsRead(messageData.id, messageData.sender.id);
@@ -379,38 +385,6 @@ const ChatRoom = () => {
     };
   }, [socket.isConnected, selectedChat]);
 
-  // Handle user menu clicks
-  const handleUserMenuClick = (action) => {
-    setShowUserMenu(false);
-    
-    switch (action) {
-      case 'profile':
-        navigate('/profile');
-        break;
-      case 'settings':
-        navigate('/settings');
-        break;
-      case 'logout':
-        logout();
-        break;
-    }
-  };
-
-  // Close menus when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
-        setShowUserMenu(false);
-      }
-      if (chatMenuRef.current && !chatMenuRef.current.contains(event.target)) {
-        setShowChatMenu(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   return (
     <div className="h-screen bg-gray-100 flex">
       {/* Chat List Sidebar */}
@@ -439,44 +413,9 @@ const ChatRoom = () => {
                         {Array.from(typingUsers).join(', ')} typing...
                       </span>
                     ) : (
-                      'Click to view profile'
+                      'Online'
                     )}
                   </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg">
-                  <Search className="w-5 h-5" />
-                </button>
-                <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg">
-                  <Phone className="w-5 h-5" />
-                </button>
-                <button className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg">
-                  <Video className="w-5 h-5" />
-                </button>
-                
-                <div className="relative" ref={chatMenuRef}>
-                  <button 
-                    onClick={() => setShowChatMenu(!showChatMenu)}
-                    className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg"
-                  >
-                    <MoreVertical className="w-5 h-5" />
-                  </button>
-                  
-                  {showChatMenu && (
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                      <button className="w-full px-4 py-2 text-left hover:bg-gray-50 rounded-t-lg">
-                        View Contact Info
-                      </button>
-                      <button className="w-full px-4 py-2 text-left hover:bg-gray-50">
-                        Clear Chat
-                      </button>
-                      <button className="w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600 rounded-b-lg">
-                        Block User
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -560,34 +499,6 @@ const ChatRoom = () => {
           </div>
         )}
       </div>
-
-      {/* User Menu */}
-      {showUserMenu && (
-        <div className="absolute top-16 right-4 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50" ref={userMenuRef}>
-          <button 
-            onClick={() => handleUserMenuClick('profile')}
-            className="w-full px-4 py-2 text-left hover:bg-gray-50 rounded-t-lg flex items-center space-x-2"
-          >
-            <User className="w-4 h-4" />
-            <span>Profile</span>
-          </button>
-          <button 
-            onClick={() => handleUserMenuClick('settings')}
-            className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2"
-          >
-            <Settings className="w-4 h-4" />
-            <span>Settings</span>
-          </button>
-          <hr className="border-gray-200" />
-          <button 
-            onClick={() => handleUserMenuClick('logout')}
-            className="w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600 rounded-b-lg flex items-center space-x-2"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Logout</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 };

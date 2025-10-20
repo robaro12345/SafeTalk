@@ -1,3 +1,4 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -6,10 +7,12 @@ import Register from './pages/Register';
 import Verify2FA from './pages/Verify2FA';
 import Setup2FA from './pages/Setup2FA';
 import ChatRoom from './pages/ChatRoom';
+import Profile from './pages/Profile';
+import AdminPanel from './pages/AdminPanel';
 import './index.css';
 
 // Protected Route Component
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   
   if (isLoading) {
@@ -27,7 +30,7 @@ const ProtectedRoute = ({ children }) => {
 };
 
 // Public Route Component (redirect to chat if authenticated)
-const PublicRoute = ({ children }) => {
+const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading, requiresTwoFA } = useAuth();
   
   if (isLoading) {
@@ -55,7 +58,7 @@ const PublicRoute = ({ children }) => {
 };
 
 // Main App Routes
-const AppRoutes = () => {
+const AppRoutes: React.FC = () => {
   return (
     <Routes>
       {/* Public Routes */}
@@ -102,6 +105,22 @@ const AppRoutes = () => {
           </ProtectedRoute>
         } 
       />
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin" 
+        element={
+          <ProtectedRoute>
+            <AdminPanel />
+          </ProtectedRoute>
+        } 
+      />
       
       {/* Default redirect */}
       <Route path="/" element={<Navigate to="/chat" />} />
@@ -128,7 +147,7 @@ const AppRoutes = () => {
   );
 };
 
-function App() {
+const App: React.FC = () => {
   return (
     <AuthProvider>
       <Router>

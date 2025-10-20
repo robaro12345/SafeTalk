@@ -2,9 +2,15 @@ import { useEffect, useRef, useCallback } from 'react';
 import socketService from '../utils/socket';
 import { useAuth } from '../context/AuthContext';
 
+interface MessageData {
+  recipientId: string;
+  content: string;
+  messageType?: string;
+}
+
 export const useSocket = () => {
   const { isAuthenticated } = useAuth();
-  const listenersRef = useRef(new Map());
+  const listenersRef = useRef<Map<string, Array<(...args: any[]) => void>>>(new Map());
 
   // Initialize socket connection when authenticated
   useEffect(() => {
@@ -30,7 +36,7 @@ export const useSocket = () => {
   }, [isAuthenticated]);
 
   // Add event listener with automatic cleanup
-  const on = useCallback((eventName, callback) => {
+  const on = useCallback((eventName: string, callback: (...args: any[]) => void) => {
     socketService.on(eventName, callback);
 
     // Track listener for cleanup
@@ -53,7 +59,7 @@ export const useSocket = () => {
   }, []);
 
   // Remove event listener
-  const off = useCallback((eventName, callback) => {
+  const off = useCallback((eventName: string, callback: (...args: any[]) => void) => {
     socketService.off(eventName, callback);
     const callbacks = listenersRef.current.get(eventName);
     if (callbacks) {
@@ -65,35 +71,35 @@ export const useSocket = () => {
   }, []);
 
   // Socket methods
-  const emit = useCallback((eventName, data) => {
+  const emit = useCallback((eventName: string, data?: any) => {
     socketService.emit(eventName, data);
   }, []);
 
-  const joinConversation = useCallback((otherUserId) => {
+  const joinConversation = useCallback((otherUserId: string) => {
     socketService.joinConversation(otherUserId);
   }, []);
 
-  const leaveConversation = useCallback((otherUserId) => {
+  const leaveConversation = useCallback((otherUserId: string) => {
     socketService.leaveConversation(otherUserId);
   }, []);
 
-  const sendMessage = useCallback((messageData) => {
+  const sendMessage = useCallback((messageData: MessageData) => {
     socketService.sendMessage(messageData);
   }, []);
 
-  const markMessageAsRead = useCallback((messageId, senderId) => {
+  const markMessageAsRead = useCallback((messageId: string, senderId: string) => {
     socketService.markMessageAsRead(messageId, senderId);
   }, []);
 
-  const startTyping = useCallback((receiverId) => {
+  const startTyping = useCallback((receiverId: string) => {
     socketService.startTyping(receiverId);
   }, []);
 
-  const stopTyping = useCallback((receiverId) => {
+  const stopTyping = useCallback((receiverId: string) => {
     socketService.stopTyping(receiverId);
   }, []);
 
-  const getUserStatus = useCallback((userIds) => {
+  const getUserStatus = useCallback((userIds: string[]) => {
     socketService.getUserStatus(userIds);
   }, []);
 
@@ -122,15 +128,15 @@ export const useSocket = () => {
     getUserStatus,
 
     // Convenience event handlers
-    onNewMessage: (callback) => on('new_message', callback),
-    onMessageSent: (callback) => on('message_sent', callback),
-    onMessageError: (callback) => on('message_error', callback),
-    onMessageReadReceipt: (callback) => on('message_read_receipt', callback),
-    onUserTyping: (callback) => on('user_typing', callback),
-    onUserOnline: (callback) => on('user_online', callback),
-    onUserOffline: (callback) => on('user_offline', callback),
-    onUserStatusList: (callback) => on('user_status_list', callback),
-    onConversationJoined: (callback) => on('conversation_joined', callback),
-    onConversationMessage: (callback) => on('conversation_message', callback),
+    onNewMessage: (callback: (...args: any[]) => void) => on('new_message', callback),
+    onMessageSent: (callback: (...args: any[]) => void) => on('message_sent', callback),
+    onMessageError: (callback: (...args: any[]) => void) => on('message_error', callback),
+    onMessageReadReceipt: (callback: (...args: any[]) => void) => on('message_read_receipt', callback),
+    onUserTyping: (callback: (...args: any[]) => void) => on('user_typing', callback),
+    onUserOnline: (callback: (...args: any[]) => void) => on('user_online', callback),
+    onUserOffline: (callback: (...args: any[]) => void) => on('user_offline', callback),
+    onUserStatusList: (callback: (...args: any[]) => void) => on('user_status_list', callback),
+    onConversationJoined: (callback: (...args: any[]) => void) => on('conversation_joined', callback),
+    onConversationMessage: (callback: (...args: any[]) => void) => on('conversation_message', callback),
   };
 };

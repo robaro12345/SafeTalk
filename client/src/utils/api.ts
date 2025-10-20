@@ -119,6 +119,7 @@ export const authAPI = {
 // User API calls
 export const userAPI = {
   getProfile: () => api.get('/users/profile'),
+  updateProfile: (data) => api.put('/users/profile', data),
   searchUsers: (query) => api.get(`/users/search?query=${encodeURIComponent(query)}`),
   getUserById: (userId, config = {}) => api.get(`/users/${userId}`, config),
   changePassword: (data) => api.put('/users/change-password', data),

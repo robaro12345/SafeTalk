@@ -6,6 +6,8 @@ class SocketService {
     this.socket = null;
     this.isConnected = false;
     this.listeners = new Map();
+    this.hasShownInitialConnection = false;
+    this.eventListenersSetup = false;
   }
 
   // Initialize socket connection
@@ -25,7 +27,12 @@ class SocketService {
       timeout: 20000,
     });
 
-    this.setupEventListeners();
+    // Only setup event listeners once
+    if (!this.eventListenersSetup) {
+      this.setupEventListeners();
+      this.eventListenersSetup = true;
+    }
+    
     return this.socket;
   }
 
@@ -37,7 +44,12 @@ class SocketService {
     this.socket.on('connect', () => {
       console.log('✅ Connected to SafeTalk server');
       this.isConnected = true;
-      toast.success('Connected to server');
+      
+      // Only show toast on initial connection, not on reconnections
+      if (!this.hasShownInitialConnection) {
+        toast.success('Connected to server');
+        this.hasShownInitialConnection = true;
+      }
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -57,7 +69,10 @@ class SocketService {
 
     this.socket.on('reconnect', (attemptNumber) => {
       console.log(`✅ Reconnected to server (attempt ${attemptNumber})`);
-      toast.success('Reconnected to server');
+      // Only show reconnection toast if user was previously disconnected
+      if (!this.isConnected) {
+        toast.success('Reconnected to server');
+      }
     });
 
     this.socket.on('reconnect_error', (error) => {
@@ -81,6 +96,8 @@ class SocketService {
       this.socket = null;
       this.isConnected = false;
       this.listeners.clear();
+      this.hasShownInitialConnection = false;
+      this.eventListenersSetup = false;
     }
   }
 

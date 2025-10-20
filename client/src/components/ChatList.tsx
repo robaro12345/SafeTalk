@@ -1,14 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Plus, MoreHorizontal } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Plus, User, Settings, LogOut, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../hooks/useSocket';
 import { messageAPI, userAPI } from '../utils/api';
 import toast from 'react-hot-toast';
 
-const ChatList = ({ onSelectChat, selectedChatId, onNewChat }) => {
-  const [conversations, setConversations] = useState([]);
+interface ChatUser {
+  id: string;
+  username: string;
+  email: string;
+}
+
+interface Conversation {
+  otherUser: ChatUser;
+  lastMessage: {
+    content?: string;
+    decryptedContent?: string;
+    timestamp: string;
+    isFromMe: boolean;
+    status?: string;
+  };
+  unreadCount: number;
+}
+
+interface ChatListProps {
+  onSelectChat: (user: ChatUser) => void;
+  selectedChatId: string | null;
+  onNewChat?: () => void;
+}
+
+const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedChatId, onNewChat }) => {
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const socket = useSocket();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<ChatUser[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Load conversations
   useEffect(() => {
@@ -24,6 +56,39 @@ const ChatList = ({ onSelectChat, selectedChatId, onNewChat }) => {
       setIsSearching(false);
     }
   }, [searchTerm]);
+
+  // Listen for new messages via socket
+  useEffect(() => {
+    if (!socket.isConnected) return;
+
+    // Handle new messages - update conversation list
+    const handleNewMessage = (messageData) => {
+      // Reload conversations to get updated list with new message
+      loadConversations();
+      
+      // Show notification if not in the selected chat
+      if (messageData.sender && messageData.sender.id !== user.id) {
+        const isCurrentChat = selectedChatId === messageData.sender.id;
+        if (!isCurrentChat) {
+          toast.success(`New message from ${messageData.sender.username}`, {
+            duration: 3000,
+            icon: '💬',
+          });
+        }
+      }
+    };
+
+    // Handle message sent - update our own conversation list
+    const handleMessageSent = (messageData) => {
+      loadConversations();
+    };
+
+    // Register socket listeners
+    socket.onNewMessage(handleNewMessage);
+    socket.onMessageSent(handleMessageSent);
+
+    // Cleanup handled by useSocket hook
+  }, [socket.isConnected, selectedChatId, user.id]);
 
   const loadConversations = async () => {
     try {
@@ -57,10 +122,10 @@ const ChatList = ({ onSelectChat, selectedChatId, onNewChat }) => {
     }
   };
 
-  const formatTimestamp = (timestamp) => {
+  const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
-    const diffTime = now - date;
+    const diffTime = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) {
@@ -81,8 +146,8 @@ const ChatList = ({ onSelectChat, selectedChatId, onNewChat }) => {
     }
   };
 
-  const handleChatSelect = (chat) => {
-    if (chat.otherUser) {
+  const handleChatSelect = (chat: Conversation | ChatUser) => {
+    if ('otherUser' in chat) {
       // Existing conversation
       onSelectChat(chat.otherUser);
     } else {
@@ -91,6 +156,37 @@ const ChatList = ({ onSelectChat, selectedChatId, onNewChat }) => {
       setSearchTerm('');
     }
   };
+
+  const handleUserMenuClick = (action: string) => {
+    setShowUserMenu(false);
+    
+    switch (action) {
+      case 'profile':
+        navigate('/profile');
+        break;
+      case 'admin':
+        navigate('/admin');
+        break;
+      case 'settings':
+        navigate('/settings');
+        break;
+      case 'logout':
+        logout();
+        break;
+    }
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   if (isLoading) {
     return (
@@ -106,13 +202,62 @@ const ChatList = ({ onSelectChat, selectedChatId, onNewChat }) => {
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-gray-900">SafeTalk</h1>
-          <button
-            onClick={() => onNewChat?.()}
-            className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-            title="New Chat"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+          <div className="flex items-center space-x-2">
+            {/* <button
+              onClick={() => onNewChat?.()}
+              className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              title="New Chat"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
+             */}
+            {/* User Menu */}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                title="User Menu"
+              >
+                <User className="w-5 h-5" />
+              </button>
+              
+              {showUserMenu && (
+                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                  <button 
+                    onClick={() => handleUserMenuClick('profile')}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-50 rounded-t-lg flex items-center space-x-2 text-gray-700"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Profile</span>
+                  </button>
+                  {user?.role === 'admin' && (
+                    <button 
+                      onClick={() => handleUserMenuClick('admin')}
+                      className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2 text-purple-600"
+                    >
+                      <Shield className="w-4 h-4" />
+                      <span>Admin Panel</span>
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => handleUserMenuClick('settings')}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2 text-gray-700"
+                  >
+                    <Settings className="w-4 h-4" />
+                    <span>Settings</span>
+                  </button>
+                  <hr className="border-gray-200" />
+                  <button 
+                    onClick={() => handleUserMenuClick('logout')}
+                    className="w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600 rounded-b-lg flex items-center space-x-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Search Bar */}
