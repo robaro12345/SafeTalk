@@ -121,6 +121,7 @@ const initializeSocket = (server) => {
         const { 
           receiverId,
           content,
+          senderEncryptedContent,
           messageType = 'text',
           tempId // Client-generated temporary ID for optimistic updates
         } = data;
@@ -143,11 +144,12 @@ const initializeSocket = (server) => {
           return;
         }
 
-        // Create message in database
+        // Create message in database with both encrypted versions
         const message = new Message({
           sender: socket.userId,
           receiver: receiverId,
-          content,
+          content, // Encrypted for receiver
+          senderEncryptedContent, // Encrypted for sender
           messageType
         });
 
@@ -156,7 +158,8 @@ const initializeSocket = (server) => {
         // Populate sender info for the response
         await message.populate('sender', 'username email');
 
-        const messageData = {
+        // Send confirmation to sender with their encrypted version
+        const senderMessageData = {
           id: message._id,
           sender: {
             id: message.sender._id,
@@ -166,7 +169,7 @@ const initializeSocket = (server) => {
           receiver: {
             id: receiverId
           },
-          content: message.content,
+          content: message.senderEncryptedContent || message.content, // Use sender's encrypted version
           messageType: message.messageType,
           timestamp: message.createdAt,
           status: 'sent',
@@ -174,15 +177,29 @@ const initializeSocket = (server) => {
         };
 
         // Send confirmation to sender
-        socket.emit('message_sent', messageData);
+        socket.emit('message_sent', senderMessageData);
 
-        // Send message to receiver if they're online
+        // Send message to receiver if they're online with their encrypted version
         const receiverConnection = activeUsers.get(receiverId);
         if (receiverConnection) {
-          io.to(`user_${receiverId}`).emit('new_message', {
-            ...messageData,
-            status: 'delivered'
-          });
+          const receiverMessageData = {
+            id: message._id,
+            sender: {
+              id: message.sender._id,
+              username: message.sender.username,
+              email: message.sender.email
+            },
+            receiver: {
+              id: receiverId
+            },
+            content: message.content, // Use receiver's encrypted version
+            messageType: message.messageType,
+            timestamp: message.createdAt,
+            status: 'delivered',
+            tempId
+          };
+          
+          io.to(`user_${receiverId}`).emit('new_message', receiverMessageData);
 
           // Update message status to delivered
           message.status = 'delivered';
@@ -191,7 +208,7 @@ const initializeSocket = (server) => {
 
         // Broadcast to conversation room
         const roomName = [socket.userId, receiverId].sort().join('_');
-        socket.to(roomName).emit('conversation_message', messageData);
+        socket.to(roomName).emit('conversation_message', senderMessageData);
 
         console.log(`💬 Message sent from ${socket.username} to ${receiverId}`);
 

@@ -15,6 +15,11 @@ const messageSchema = new mongoose.Schema({
     type: String,
     required: function() { return this.messageType === 'text'; }
   },
+  // Store encrypted content for sender (so they can decrypt their own messages)
+  senderEncryptedContent: {
+    type: String,
+    required: false
+  },
   messageType: {
     type: String,
     enum: ['text', 'file', 'image'],

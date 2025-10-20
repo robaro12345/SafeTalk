@@ -78,10 +78,14 @@ api.interceptors.response.use(
 
     // Handle other errors
     const errorMessage = error.response?.data?.message || 'An error occurred';
-    
-    // Don't show toast for certain error types
+
+    // Respect per-request silent flag to avoid duplicate toasts from callers
+    // Callers can pass { silent: true } in the axios config or set originalRequest.silent
+    const isSilentRequest = originalRequest?.silent === true || originalRequest?.headers?.['x-skip-toast'] === '1';
+
+    // Don't show toast for certain error types or when the request asked to be silent
     const silentErrors = ['Network Error', 'timeout'];
-    if (!silentErrors.some(silent => errorMessage.includes(silent))) {
+    if (!isSilentRequest && !silentErrors.some(silent => errorMessage.includes(silent))) {
       toast.error(errorMessage);
     }
 
@@ -116,7 +120,7 @@ export const authAPI = {
 export const userAPI = {
   getProfile: () => api.get('/users/profile'),
   searchUsers: (query) => api.get(`/users/search?query=${encodeURIComponent(query)}`),
-  getUserById: (userId) => api.get(`/users/${userId}`),
+  getUserById: (userId, config = {}) => api.get(`/users/${userId}`, config),
   changePassword: (data) => api.put('/users/change-password', data),
   update2FA: (data) => api.put('/users/update-2fa', data),
   // Admin routes

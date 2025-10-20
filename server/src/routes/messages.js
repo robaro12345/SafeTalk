@@ -5,6 +5,7 @@ import { authenticateToken } from '../middleware/auth.js';
 import { messageLimiter } from '../middleware/rateLimiter.js';
 import { validateInput, asyncHandler } from '../middleware/validation.js';
 import { sendMessageSchema } from '../utils/validation.js';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -18,7 +19,7 @@ router.post('/send',
   messageLimiter,
   validateInput(sendMessageSchema),
   asyncHandler(async (req, res) => {
-      const { receiverId, content, messageType = 'text' } = req.body;
+      const { receiverId, content, senderEncryptedContent, messageType = 'text' } = req.body;
     const senderId = req.user.userId;
 
     // Validate sender and receiver are different
@@ -38,11 +39,12 @@ router.post('/send',
       });
     }
 
-    // Create message (plaintext)
+    // Create message with both encrypted versions
     const message = new Message({
       sender: senderId,
       receiver: receiverId,
-      content,
+      content, // Encrypted for receiver
+      senderEncryptedContent, // Encrypted for sender
       messageType
     });
 
@@ -120,10 +122,41 @@ router.get('/conversation/:userId',
       { status: 'read' }
     );
 
+    // Normalize messages so the client always receives sender.id and receiver.id as string values
+    const normalized = messages.reverse().map(m => {
+      const sender = m.sender || {};
+      const receiver = m.receiver || {};
+      
+      // Return the appropriate encrypted content based on who's requesting
+      const isSender = String(sender._id) === String(currentUserId);
+      const encryptedContent = isSender ? (m.senderEncryptedContent || m.content) : m.content;
+
+      return {
+        id: m._id,
+        sender: {
+          id: sender._id ? String(sender._id) : (sender.id || null),
+          username: sender.username,
+          email: sender.email
+        },
+        receiver: {
+          id: receiver._id ? String(receiver._id) : (receiver.id || null),
+          username: receiver.username,
+          email: receiver.email
+        },
+        content: encryptedContent,
+        messageType: m.messageType,
+        status: m.status,
+        timestamp: m.createdAt,
+        isDeleted: m.isDeleted,
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt
+      };
+    });
+
     res.status(200).json({
       success: true,
       data: {
-        messages: messages.reverse(), // Return in chronological order
+        messages: normalized, // Return in chronological order
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -152,13 +185,16 @@ router.get('/conversations',
     const currentUserId = req.user.userId;
 
     // Get all conversations with latest message
-    const conversations = await Message.aggregate([
+  // Ensure currentUserId is an ObjectId for correct comparisons in aggregation
+  const currentUserObjectId = new mongoose.Types.ObjectId(currentUserId);
+
+  const conversations = await Message.aggregate([
       // Match messages involving current user
       {
         $match: {
           $or: [
-            { sender: currentUserId },
-            { receiver: currentUserId }
+            { sender: currentUserObjectId },
+            { receiver: currentUserObjectId }
           ],
           isDeleted: false
         }
@@ -170,7 +206,7 @@ router.get('/conversations',
         $group: {
           _id: {
             $cond: [
-              { $eq: ['$sender', currentUserId] },
+              { $eq: ['$sender', currentUserObjectId] },
               '$receiver',
               '$sender'
             ]
@@ -217,7 +253,7 @@ router.get('/conversations',
             messageType: '$lastMessage.messageType',
             timestamp: '$lastMessage.createdAt',
             status: '$lastMessage.status',
-            isFromMe: { $eq: ['$lastMessage.sender', currentUserId] }
+            isFromMe: { $eq: ['$lastMessage.sender', currentUserObjectId] }
           },
           unreadCount: 1
         }

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { authAPI, apiUtils } from '../utils/api';
+import cryptoUtils from '../utils/crypto';
 import socketService from '../utils/socket';
 import toast from 'react-hot-toast';
 
@@ -130,14 +131,42 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
       dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
 
-      console.log('Calling register API with:', userData);
-      const response = await authAPI.register(userData);
+      // If publicKey is not already provided (e.g. Register page already generated it), generate here
+      let publicKeyPem = userData.publicKey || null;
+      let privateKeyJwk = null;
+
+      if (!publicKeyPem) {
+        try {
+          const kp = await cryptoUtils.generateKeyPair();
+          publicKeyPem = kp.publicKeyPem;
+          privateKeyJwk = kp.privateKeyJwk;
+        } catch (e) {
+          console.error('Key generation failed:', e);
+          dispatch({ type: AUTH_ACTIONS.SET_ERROR, payload: 'Failed to generate encryption keys' });
+          toast.error('Failed to generate encryption keys. Please try again or use a different browser.');
+          return { success: false, error: 'Key generation failed' };
+        }
+      }
+
+      const registrationPayload = { ...userData, publicKey: publicKeyPem };
+
+      console.log('Calling register API with:', registrationPayload);
+      const response = await authAPI.register(registrationPayload);
       console.log('Register API response:', response.data);
       
       const { success, message, totpSetup, user } = response.data;
 
       if (success) {
         toast.success(message || 'Registration successful!');
+        // Store private key JWK locally for later decryption if we generated it here
+        try {
+          if (privateKeyJwk) {
+            localStorage.setItem('privateKeyJwk', JSON.stringify(privateKeyJwk));
+          }
+        } catch (e) {
+          console.warn('Failed to store private key locally:', e);
+        }
+
         console.log('Returning from register function:', { success: true, totpSetup, user });
         return { success: true, totpSetup, user };
       } else {

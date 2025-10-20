@@ -2,7 +2,6 @@ import express from 'express';
 import User from '../models/User.js';
 import EmailOTP from '../models/EmailOTP.js';
 import { 
-  generateRSAKeyPair,
   hashPassword,
   verifyPassword,
   generateOTP,
@@ -52,13 +51,17 @@ router.post('/register',
       }
     }
 
-    // Generate RSA key pair for end-to-end encryption (store public key only)
-    const { publicKey } = generateRSAKeyPair();
+    // Use client-provided publicKey if available
+    const publicKey = req.body.publicKey || undefined;
 
-  // Hash password
+    // Hash password
   const passwordHash = await hashPassword(password);
     
     // Prepare user data (private key is not stored server-side)
+    if (!publicKey) {
+      return res.status(400).json({ success: false, message: 'publicKey is required in registration payload' });
+    }
+
     const userData = {
       email,
       username,

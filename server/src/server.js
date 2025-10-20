@@ -16,6 +16,7 @@ import { errorHandler, notFoundHandler } from './middleware/validation.js';
 import authRoutes from './routes/auth.js';
 import messageRoutes from './routes/messages.js';
 import userRoutes from './routes/users.js';
+import debugRoutes from './routes/debug.js';
 
 // Import socket configuration
 import { initializeSocket } from './socket.js';
@@ -117,6 +118,8 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
+// Temporary debug routes (remove in production)
+app.use('/api/debug', debugRoutes);
 
 // API info endpoint
 app.get('/api', (req, res) => {

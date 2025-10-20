@@ -7,6 +7,7 @@ import InputBox from '../components/InputBox';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../hooks/useSocket';
 import { messageAPI, apiUtils, userAPI } from '../utils/api';
+import cryptoUtils from '../utils/crypto';
 // Encryption removed: messages are sent as plain content
 import toast from 'react-hot-toast';
 
@@ -28,7 +29,14 @@ const ChatRoom = () => {
   const typingTimeoutRef = useRef(null);
 
   // No encryption keys used anymore
-  const getEncryptionKeys = () => ({ });
+    const getEncryptionKeys = () => {
+      try {
+        const jwk = localStorage.getItem('privateKeyJwk');
+        return jwk ? JSON.parse(jwk) : null;
+      } catch (e) {
+        return null;
+      }
+    };
 
   // Auto-scroll to bottom of messages
   const scrollToBottom = () => {
@@ -41,15 +49,48 @@ const ChatRoom = () => {
 
   // Handle chat selection
   const handleChatSelect = async (chatUser) => {
-    setSelectedChat(chatUser);
     setMessages([]);
-    
-    if (chatUser.id) {
-      // Join conversation room
-      socket.joinConversation(chatUser.id);
-      
-      // Load conversation history
-      await loadMessages(chatUser.id);
+
+    // chatUser might be a conversation object with 'otherUser' or a plain user
+    try {
+      let candidate = chatUser;
+      if (chatUser?.otherUser) candidate = chatUser.otherUser;
+
+      // Resolve possible id fields and coerce to string to avoid ObjectId objects leaking into the URL
+      const rawId = candidate?.id || candidate?._id || candidate?.userId;
+      const userId = rawId ? String(rawId) : null;
+
+      if (!userId) {
+        toast.error('Invalid user selected');
+        return;
+      }
+
+  // Fetch full user profile (includes publicKey)
+  const resp = await userAPI.getUserById(userId, { silent: true });
+  const fullUser = resp.data.data.user;
+
+  // Normalize fullUser to always include `id` as a string to keep UI comparisons stable
+  const normalizedId = fullUser.id || fullUser._id ? String(fullUser.id || fullUser._id) : userId;
+  const normalizedUser = { ...fullUser, id: normalizedId };
+
+  // Debug: log raw/normalized ids when problems occur
+  console.debug('Selected chat user raw id:', rawId, 'normalized:', normalizedId);
+
+  setSelectedChat(normalizedUser);
+
+  // Join conversation room
+  socket.joinConversation(normalizedId);
+
+  // Load conversation history
+  await loadMessages(normalizedId);
+    } catch (error) {
+      console.error('Failed to load selected chat user profile:', error);
+      const message = error.response?.data?.message;
+      if (message && message.toLowerCase().includes('not found')) {
+        toast.error('User not found');
+      } else {
+        toast.error('Failed to load user profile');
+      }
     }
   };
 
@@ -59,9 +100,41 @@ const ChatRoom = () => {
       setIsLoadingMessages(true);
       const response = await messageAPI.getConversation(userId);
       const conversationMessages = response.data.data.messages;
-      
-      // Messages are stored as plain content
-      const plainMessages = conversationMessages.map(m => ({ ...m, decryptedContent: m.content || m.text || null, decryptionError: false }));
+      // Messages stored on server are ciphertext (RSA-OAEP base64). Attempt to decrypt each message.
+      const privateKeyJwk = getEncryptionKeys();
+
+      const plainMessages = await Promise.all(conversationMessages.map(async (m) => {
+        let decrypted = null;
+        let decryptionError = false;
+        
+        // Normalize sender id for isOwn checks
+        const sender = m.sender || {};
+        const senderId = sender.id || sender._id || (sender._id && String(sender._id)) || null;
+        const receiver = m.receiver || {};
+        const receiverId = receiver.id || receiver._id || (receiver._id && String(receiver._id)) || null;
+        
+        // Try to decrypt message with our private key
+        // The server now returns the appropriate encrypted version based on who's requesting
+        if (privateKeyJwk) {
+          try {
+            decrypted = await cryptoUtils.decryptWithPrivateKeyJwk(privateKeyJwk, m.content);
+          } catch (e) {
+            console.error('Decryption failed for message:', m.id || m._id, e);
+            decryptionError = true;
+            decrypted = null;
+          }
+        }
+
+        return {
+          ...m,
+          id: m.id || m._id,
+          sender: { ...sender, id: senderId },
+          receiver: { ...receiver, id: receiverId },
+          decryptedContent: decrypted || m.content || m.text || null,
+          decryptionError
+        };
+      }));
+
       setMessages(plainMessages);
     } catch (error) {
       console.error('Failed to load messages:', error);
@@ -74,7 +147,15 @@ const ChatRoom = () => {
   // Decrypt message content
   // No decryption required; messages come as plain content
   const decryptMessageContent = async (message) => {
-    return message.content || message.text || null;
+    const privateKeyJwk = getEncryptionKeys();
+    if (!privateKeyJwk) return message.content || message.text || null;
+
+    try {
+      const decrypted = await cryptoUtils.decryptWithPrivateKeyJwk(privateKeyJwk, message.content);
+      return decrypted;
+    } catch (e) {
+      return message.content || message.text || null;
+    }
   };
 
   // Send message
@@ -82,10 +163,68 @@ const ChatRoom = () => {
     if (!selectedChat || !messageText.trim()) return;
 
     try {
-      // Create message data (plaintext)
+      // Fetch recipient publicKey (must exist) and encrypt before sending.
+      const receiverId = selectedChat.id || selectedChat._id;
+
+      let recipientPublicKeyPem = selectedChat.publicKey || null;
+      if (!recipientPublicKeyPem) {
+        try {
+          // silent: true prevents api layer from showing its own toast
+          const resp = await userAPI.getUserById(receiverId, { silent: true });
+          recipientPublicKeyPem = resp.data.data.user.publicKey;
+        } catch (e) {
+          console.error('Failed to fetch recipient publicKey:', e);
+          const status = e.response?.status;
+          if (status === 404) {
+            toast.error('User not found');
+          } else {
+            toast.error('Failed to fetch recipient public key — cannot send encrypted message');
+          }
+          return;
+        }
+      }
+
+      if (!recipientPublicKeyPem) {
+        toast.error('Recipient does not have a public key — cannot send encrypted message');
+        return;
+      }
+
+      // Get sender's own public key to encrypt for themselves
+      let senderPublicKeyPem = user.publicKey || null;
+      if (!senderPublicKeyPem) {
+        try {
+          const resp = await userAPI.getUserById(user.id, { silent: true });
+          senderPublicKeyPem = resp.data.data.user.publicKey;
+        } catch (e) {
+          console.error('Failed to fetch own publicKey:', e);
+        }
+      }
+
+      // Encrypt for receiver
+      let receiverCiphertext;
+      try {
+        receiverCiphertext = await cryptoUtils.encryptWithPublicKeyPem(recipientPublicKeyPem, messageText);
+      } catch (e) {
+        console.error('Encryption for receiver failed:', e);
+        toast.error('Message encryption failed — message not sent');
+        return;
+      }
+
+      // Encrypt for sender (so they can decrypt their own messages)
+      let senderCiphertext;
+      if (senderPublicKeyPem) {
+        try {
+          senderCiphertext = await cryptoUtils.encryptWithPublicKeyPem(senderPublicKeyPem, messageText);
+        } catch (e) {
+          console.error('Encryption for sender failed:', e);
+          // Continue anyway, sender can still see plaintext in current session
+        }
+      }
+
       const messageData = {
-        receiverId: selectedChat.id || selectedChat._id,
-        content: messageText,
+        receiverId,
+        content: receiverCiphertext,
+        senderEncryptedContent: senderCiphertext,
         messageType: 'text',
         tempId: Date.now().toString() // For optimistic updates
       };
@@ -96,7 +235,7 @@ const ChatRoom = () => {
         sender: { id: user.id, username: user.username },
         receiver: { id: selectedChat.id || selectedChat._id },
         decryptedContent: messageText,
-        content: messageText,
+        content: senderCiphertext || receiverCiphertext, // Use sender's encrypted version for display
         timestamp: new Date().toISOString(),
         status: 'sending',
         tempId: messageData.tempId
@@ -157,13 +296,24 @@ const ChatRoom = () => {
     };
 
     // Handle message sent confirmation
-    const handleMessageSent = (messageData) => {
+    const handleMessageSent = async (messageData) => {
+      // Try to decrypt the confirmed message with our private key
+      const decryptedContent = await decryptMessageContent(messageData);
+      
       setMessages(prev => 
-        prev.map(msg => 
-          msg.tempId === messageData.tempId 
-            ? { ...msg, id: messageData.id, status: 'sent' }
-            : msg
-        )
+        prev.map(msg => {
+          if (msg.tempId === messageData.tempId) {
+            return {
+              ...msg, 
+              id: messageData.id, 
+              status: 'sent',
+              content: messageData.content,
+              decryptedContent: decryptedContent || msg.decryptedContent,
+              decryptionError: !decryptedContent
+            };
+          }
+          return msg;
+        })
       );
     };
 

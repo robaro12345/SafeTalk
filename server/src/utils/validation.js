@@ -36,6 +36,13 @@ export const registerSchema = Joi.object({
       'any.required': 'Password is required'
     }),
   
+  publicKey: Joi.string()
+    .required()
+    .messages({
+      'string.base': 'Public key must be a string',
+      'any.required': 'Public key is required'
+    }),
+  
   twoFAMethod: Joi.string()
     .valid('email', 'totp')
     .required()
@@ -93,6 +100,12 @@ export const sendMessageSchema = Joi.object({
     .required()
     .messages({
       'any.required': 'Message content is required'
+    }),
+  
+  senderEncryptedContent: Joi.string()
+    .optional()
+    .messages({
+      'string.base': 'Sender encrypted content must be a string'
     }),
   
   messageType: Joi.string()

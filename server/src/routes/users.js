@@ -93,9 +93,11 @@ router.get('/:userId',
   authenticateToken,
   asyncHandler(async (req, res) => {
     const { userId } = req.params;
+    console.debug('[users.route] GET /api/users/:userId called with userId=', userId);
 
     const user = await User.findById(userId)
-      .select('username email publicKey createdAt');
+      .select('username email publicKey createdAt isActive');
+    console.debug('[users.route] DB lookup result for', userId, '=>', !!user, user ? { id: user._id, isActive: user.isActive } : null);
 
     if (!user || !user.isActive) {
       return res.status(404).json({

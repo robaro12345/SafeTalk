@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import cryptoUtils from '../utils/crypto';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -47,7 +48,19 @@ const Register = () => {
     }
 
     const { confirmPassword, ...registrationData } = formData;
-    
+
+    // Generate RSA key pair client-side and attach publicKey to registration payload
+    try {
+      const { publicKeyPem, privateKeyJwk } = await cryptoUtils.generateKeyPair();
+      // store private key locally (so the user can decrypt after reload)
+      localStorage.setItem('privateKeyJwk', JSON.stringify(privateKeyJwk));
+      registrationData.publicKey = publicKeyPem;
+    } catch (err) {
+      console.error('Key generation failed on Register page:', err);
+      toast.error('Failed to generate encryption keys. Try again or use another browser.');
+      return;
+    }
+
     const result = await register(registrationData);
 
     if (result.success) {
@@ -120,7 +133,7 @@ const Register = () => {
                 onChange={handleInputChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="Choose a username"
-pattern="[a-zA-Z0-9_-]*"
+                pattern="^[-A-Za-z0-9_]*$"
                 minLength={3}
                 maxLength={30}
                 required
