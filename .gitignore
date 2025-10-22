@@ -8,11 +8,8 @@ pnpm-debug.log*
 
 # Env
 .env
-.env.*
 server/.env
-server/.env.*
 client/.env
-client/.env.*
 
 # Build outputs
 .dist/
