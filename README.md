@@ -6,16 +6,45 @@
 
 **A production-ready, full-stack MERN secure chat application with military-grade end-to-end encryption, JWT authentication, and mandatory two-factor authentication (2FA)**
 
-[![React](https://img.shields.io/badge/React-19.1.1-61DAFB?logo=react&logoColor=white)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19.2.0-61DAFB?logo=react&logoColor=white)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-7.x-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-[![Socket.io](https://img.shields.io/badge/Socket.io-4.x-010101?logo=socket.io&logoColor=white)](https://socket.io/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-8.x-47A248?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Socket.io](https://img.shields.io/badge/Socket.io-4.8.1-010101?logo=socket.io&logoColor=white)](https://socket.io/)
+[![Vite](https://img.shields.io/badge/Vite-7.1.9-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[Features](#-features) • [Demo](#-demo) • [Installation](#-installation) • [API Docs](#-api-documentation) • [Security](#-security-mechanisms)
+[Quick Start](#-quick-start) • [Features](#-features) • [Demo](#-demo) • [Installation](#-installation) • [API Docs](#-api-documentation) • [Security](#-security-mechanisms) • [Deployment](#-deployment)
 
 </div>
+
+---
+
+## 🚀 Quick Start
+
+Get SafeTalk running in under 5 minutes:
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Omsiddh/SafeTalk.git
+cd SafeTalk
+
+# 2. Setup Backend
+cd server
+npm install
+cp .env.example .env  # Edit with your MongoDB URI and email config
+npm run dev           # Starts on http://localhost:5000
+
+# 3. Setup Frontend (new terminal)
+cd ../client
+npm install
+cp .env.example .env  # Edit with API endpoints
+npm run dev           # Starts on http://localhost:5173
+
+# 4. Open http://localhost:5173 and create your account!
+```
+
+**Requirements:** Node.js 20+, MongoDB 7+, and a valid SMTP email account.
 
 ---
 
@@ -24,9 +53,21 @@
 
 SafeTalk is a modern, secure messaging platform that prioritizes user privacy through end-to-end encryption. Built with the MERN stack and TypeScript, it combines the real-time capabilities of Socket.io with military-grade encryption to ensure your conversations remain truly private.
 
-### 🎥 Demo
+### 📊 Project Status
 
-> Add screenshots or GIF demos of your application here
+🟢 **Status**: Active Development  
+🚀 **Version**: 1.0.0  
+📅 **Last Updated**: November 2025  
+✅ **Production Ready**: Core features complete  
+
+#### 🎯 Current State
+- ✅ **Authentication System**: Complete with JWT & 2FA
+- ✅ **End-to-End Encryption**: RSA-2048 + AES-256-GCM implementation
+- ✅ **Real-time Messaging**: Socket.io WebSocket connections
+- ✅ **Admin Panel**: User management and analytics
+- ✅ **Security Features**: Rate limiting, account lockout, security headers
+- ✅ **Responsive UI**: Modern WhatsApp-inspired interface
+- ✅ **Email System**: OTP delivery and notifications
 
 ### 🌟 Why SafeTalk?
 
@@ -55,6 +96,8 @@ SafeTalk implements industry-standard security measures to ensure your conversat
 
 ## 📋 Table of Contents
 
+- [Quick Start](#-quick-start)
+- [Overview](#-overview)
 - [Features](#-features)
 - [Tech Stack](#-tech-stack)
 - [Security Architecture](#-security-architecture)
@@ -63,8 +106,13 @@ SafeTalk implements industry-standard security measures to ensure your conversat
 - [Usage](#-usage)
 - [API Documentation](#-api-documentation)
 - [Security Mechanisms](#-security-mechanisms)
+- [Deployment](#-deployment)
+- [Testing](#-testing)
+- [Development](#-development)
+- [Changelog](#-changelog)
 - [Contributing](#-contributing)
 - [License](#-license)
+- [Acknowledgments](#-acknowledgments)
 
 ## ✨ Features
 
@@ -120,45 +168,47 @@ SafeTalk implements industry-standard security measures to ensure your conversat
 ### Frontend
 | Technology | Purpose | Version |
 |------------|---------|---------|
-| **React** | UI library for building interactive interfaces | 19.1.1 |
-| **TypeScript** | Type-safe JavaScript for better code quality | 5.x |
-| **Vite** | Lightning-fast build tool and dev server | Latest |
-| **Tailwind CSS** | Utility-first CSS framework for styling | 3.x |
-| **React Router** | Client-side routing and navigation | 7.x |
-| **Socket.io Client** | Real-time bidirectional communication | 4.x |
-| **Lucide React** | Beautiful & consistent icon library | Latest |
-| **React Hot Toast** | Elegant toast notifications | Latest |
-| **Crypto-JS** | Client-side AES encryption | Latest |
+| **React** | UI library for building interactive interfaces | 19.2.0 |
+| **TypeScript** | Type-safe JavaScript for better code quality | 5.9.3 |
+| **Vite** | Lightning-fast build tool and dev server | 7.1.9 |
+| **Tailwind CSS** | Utility-first CSS framework for styling | 4.1.14 |
+| **React Router** | Client-side routing and navigation | 6.30.1 |
+| **Socket.io Client** | Real-time bidirectional communication | 4.8.1 |
+| **Lucide React** | Beautiful & consistent icon library | 0.294.0 |
+| **React Hot Toast** | Elegant toast notifications | 2.6.0 |
+| **Crypto-JS** | Client-side AES encryption | 4.2.0 |
+| **Node Forge** | RSA encryption and key management | 1.3.1 |
 
 ### Backend
 | Technology | Purpose | Version |
 |------------|---------|---------|
 | **Node.js** | JavaScript runtime environment | 20+ |
-| **Express.js** | Fast, minimalist web framework | 4.x |
-| **MongoDB** | NoSQL database for flexible data storage | 7.x |
-| **Mongoose** | Elegant MongoDB object modeling | 8.x |
-| **Socket.io** | Real-time server-client communication | 4.x |
-| **JWT** | Secure token-based authentication | Latest |
+| **Express.js** | Fast, minimalist web framework | 4.21.2 |
+| **MongoDB** | NoSQL database for flexible data storage | 8.19.1 |
+| **Mongoose** | Elegant MongoDB object modeling | 8.19.1 |
+| **Socket.io** | Real-time server-client communication | 4.8.1 |
+| **JWT** | Secure token-based authentication | 9.0.2 |
 
 ### Security & Encryption
-| Technology | Purpose |
-|------------|---------|
-| **Argon2** | Advanced password hashing (PHC winner) |
-| **Node Forge** | RSA encryption and key management |
-| **Crypto-JS** | AES-256-GCM message encryption |
-| **Speakeasy** | TOTP implementation for 2FA |
-| **Helmet.js** | HTTP security headers middleware |
-| **Express Rate Limit** | API rate limiting and DoS protection |
+| Technology | Purpose | Version |
+|------------|---------|---------|
+| **Argon2** | Advanced password hashing (PHC winner) | 0.31.2 |
+| **Node Forge** | RSA encryption and key management | 1.3.1 |
+| **Crypto-JS** | AES-256-GCM message encryption | 4.2.0 |
+| **Speakeasy** | TOTP implementation for 2FA | 2.0.0 |
+| **Helmet.js** | HTTP security headers middleware | 7.2.0 |
+| **Express Rate Limit** | API rate limiting and DoS protection | 7.5.1 |
 
 ### Development & Utilities
-| Technology | Purpose |
-|------------|---------|
-| **Nodemailer** | Email sending for OTP delivery |
-| **QRCode** | QR code generation for TOTP setup |
-| **Joi** | Object schema validation and sanitization |
-| **CORS** | Cross-origin resource sharing |
-| **Dotenv** | Environment variable management |
-| **ESLint** | Code linting and quality assurance |
+| Technology | Purpose | Version |
+|------------|---------|---------|
+| **Nodemailer** | Email sending for OTP delivery | 6.10.1 |
+| **QRCode** | QR code generation for TOTP setup | 1.5.4 |
+| **Joi** | Object schema validation and sanitization | 17.13.3 |
+| **CORS** | Cross-origin resource sharing | 2.8.5 |
+| **Dotenv** | Environment variable management | 16.6.1 |
+| **ESLint** | Code linting and quality assurance | 9.37.0 |
+| **Nodemon** | Development server with hot reload | 3.1.10 |
 
 ---
 
@@ -1824,7 +1874,807 @@ SOFTWARE.
 
 ---
 
-## 🙏 Acknowledgments
+## 🚀 Deployment
+
+### 📦 Production Build
+
+#### Backend Production Setup
+
+```bash
+# 1. Clone repository
+git clone https://github.com/Omsiddh/SafeTalk.git
+cd SafeTalk/server
+
+# 2. Install dependencies
+npm install --production
+
+# 3. Create production environment file
+cp .env.example .env
+# Edit .env with production values
+
+# 4. Build and start
+npm start
+```
+
+#### Frontend Production Build
+
+```bash
+# 1. Navigate to client directory
+cd client
+
+# 2. Install dependencies
+npm install
+
+# 3. Create production environment
+cp .env.example .env
+# Configure production API endpoints
+
+# 4. Build for production
+npm run build
+
+# 5. Preview build (optional)
+npm run preview
+```
+
+### ☁️ Cloud Deployment Options
+
+#### Option 1: Heroku Deployment
+
+**Backend (Server):**
+```bash
+# Install Heroku CLI
+# Login to Heroku
+heroku login
+
+# Create app
+heroku create safetalk-server
+
+# Configure environment variables
+heroku config:set NODE_ENV=production
+heroku config:set MONGODB_URI=your-mongodb-atlas-uri
+heroku config:set JWT_SECRET=your-production-secret
+heroku config:set EMAIL_USER=your-email
+heroku config:set EMAIL_PASS=your-app-password
+
+# Deploy
+git subtree push --prefix server heroku main
+```
+
+**Frontend (Client):**
+```bash
+# Build and deploy to Netlify/Vercel
+npm run build
+# Upload dist/ folder to hosting service
+```
+
+#### Option 2: VPS Deployment (Ubuntu/CentOS)
+
+**Prerequisites:**
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js 20+
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install MongoDB
+sudo apt-get install -y mongodb
+
+# Install PM2 (Process Manager)
+sudo npm install -g pm2
+
+# Install Nginx (Reverse Proxy)
+sudo apt-get install -y nginx
+```
+
+**Deployment Script:**
+```bash
+# Clone and setup
+git clone https://github.com/Omsiddh/SafeTalk.git
+cd SafeTalk
+
+# Backend setup
+cd server
+npm install --production
+cp .env.example .env
+# Configure .env file
+
+# Start with PM2
+pm2 start src/server.js --name "safetalk-server"
+pm2 startup
+pm2 save
+
+# Frontend setup
+cd ../client
+npm install
+npm run build
+
+# Copy to web directory
+sudo cp -r dist/* /var/www/safetalk/
+```
+
+**Nginx Configuration:**
+```nginx
+# /etc/nginx/sites-available/safetalk
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    # Frontend
+    location / {
+        root /var/www/safetalk;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Backend API
+    location /api/ {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Socket.io WebSocket
+    location /socket.io/ {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+#### Option 3: Docker Deployment
+
+**Docker Compose Setup:**
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: safetalk-mongo
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=securepassword
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+
+  backend:
+    build: ./server
+    container_name: safetalk-server
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://admin:securepassword@mongodb:27017/safetalk?authSource=admin
+    depends_on:
+      - mongodb
+    ports:
+      - "5000:5000"
+
+  frontend:
+    build: ./client
+    container_name: safetalk-client
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mongodb_data:
+```
+
+**Server Dockerfile:**
+```dockerfile
+# server/Dockerfile
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy source code
+COPY src/ ./src/
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+
+# Change ownership
+RUN chown -R nodejs:nodejs /app
+USER nodejs
+
+# Expose port
+EXPOSE 5000
+
+# Start application
+CMD ["npm", "start"]
+```
+
+**Client Dockerfile:**
+```dockerfile
+# client/Dockerfile
+FROM node:20-alpine as builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Build application
+RUN npm run build
+
+# Production image
+FROM nginx:alpine
+
+# Copy built files
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port
+EXPOSE 80
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+### 🔐 Production Security Checklist
+
+#### Environment Configuration
+
+- [ ] **Strong JWT Secrets**: Generate cryptographically secure secrets
+- [ ] **Environment Variables**: Never commit secrets to version control
+- [ ] **Database Security**: Use strong credentials and connection strings
+- [ ] **HTTPS/TLS**: Enable SSL certificates (Let's Encrypt recommended)
+- [ ] **CORS Configuration**: Whitelist only trusted domains
+- [ ] **Rate Limiting**: Adjust limits based on expected traffic
+
+#### Server Security
+
+- [ ] **Firewall**: Configure iptables/ufw to block unnecessary ports
+- [ ] **SSH Security**: Disable password auth, use key-based authentication
+- [ ] **System Updates**: Keep OS and packages updated
+- [ ] **Process Management**: Use PM2 or similar for process monitoring
+- [ ] **Log Management**: Configure log rotation and monitoring
+- [ ] **Backup Strategy**: Regular database and file backups
+
+#### Application Security
+
+- [ ] **Input Validation**: All user inputs validated and sanitized
+- [ ] **Error Handling**: No sensitive information in error messages
+- [ ] **Security Headers**: Helmet.js configured properly
+- [ ] **Content Security Policy**: Strict CSP headers
+- [ ] **Session Security**: Secure cookie settings
+- [ ] **Admin Access**: Secure admin panel access
+
+### 📊 Monitoring & Analytics
+
+#### Health Monitoring
+
+```javascript
+// server/src/routes/health.js
+import express from 'express';
+import mongoose from 'mongoose';
+
+const router = express.Router();
+
+router.get('/health', (req, res) => {
+  const health = {
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+    memory: process.memoryUsage(),
+    version: process.env.npm_package_version || '1.0.0'
+  };
+  
+  res.status(200).json(health);
+});
+
+export default router;
+```
+
+#### Performance Monitoring
+
+```bash
+# Install monitoring tools
+npm install --save express-prom-bundle prom-client
+
+# Set up Prometheus metrics
+# Configure Grafana dashboards
+# Set up alerting for critical metrics
+```
+
+### 🔄 CI/CD Pipeline
+
+#### GitHub Actions Workflow
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy SafeTalk
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: |
+          server/package-lock.json
+          client/package-lock.json
+    
+    - name: Install Backend Dependencies
+      run: |
+        cd server
+        npm ci
+    
+    - name: Install Frontend Dependencies
+      run: |
+        cd client
+        npm ci
+    
+    - name: Run Tests
+      run: |
+        cd server
+        npm test
+        cd ../client
+        npm test
+    
+    - name: Build Frontend
+      run: |
+        cd client
+        npm run build
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Deploy to production
+      run: |
+        # Add deployment commands here
+        echo "Deploying to production..."
+```
+
+---
+
+## 🧪 Testing
+
+### 🔍 Running Tests
+
+#### Backend Tests
+
+```bash
+cd server
+
+# Install test dependencies
+npm install --save-dev jest supertest
+
+# Run unit tests
+npm test
+
+# Run integration tests
+npm run test:integration
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+#### Frontend Tests
+
+```bash
+cd client
+
+# Install test dependencies
+npm install --save-dev @testing-library/react @testing-library/jest-dom vitest
+
+# Run unit tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### 🛠️ Test Structure
+
+```
+server/
+  tests/
+    unit/
+      crypto.test.js
+      auth.test.js
+      validation.test.js
+    integration/
+      auth.api.test.js
+      messages.api.test.js
+      admin.api.test.js
+    fixtures/
+      testUsers.js
+      testMessages.js
+
+client/
+  src/
+    __tests__/
+      components/
+        ChatList.test.tsx
+        MessageBubble.test.tsx
+      utils/
+        crypto.test.ts
+        api.test.ts
+      pages/
+        Login.test.tsx
+        ChatRoom.test.tsx
+```
+
+### 📋 Testing Guidelines
+
+#### Unit Tests
+- Test individual functions and components
+- Mock external dependencies
+- Cover edge cases and error scenarios
+- Aim for 80%+ code coverage
+
+#### Integration Tests
+- Test API endpoints end-to-end
+- Test authentication flows
+- Test real database operations
+- Test Socket.io connections
+
+#### Security Tests
+- Test authentication bypass attempts
+- Test injection vulnerabilities
+- Test rate limiting effectiveness
+- Test encryption/decryption flows
+
+---
+
+## 🔧 Development
+
+### 🛠️ Development Setup
+
+#### Prerequisites
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Node.js | 20+ | Runtime environment |
+| npm | 10+ | Package manager |
+| MongoDB | 7+ | Database |
+| Git | 2.x | Version control |
+| VS Code | Latest | Recommended IDE |
+
+#### IDE Configuration
+
+**VS Code Extensions:**
+```json
+{
+  "recommendations": [
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-json",
+    "mongodb.mongodb-vscode",
+    "ms-vscode.vscode-eslint",
+    "esbenp.prettier-vscode"
+  ]
+}
+```
+
+**ESLint Configuration:**
+```javascript
+// .eslintrc.js
+module.exports = {
+  root: true,
+  env: {
+    browser: true,
+    es2020: true,
+    node: true,
+  },
+  extends: [
+    'eslint:recommended',
+    '@typescript-eslint/recommended',
+    'plugin:react-hooks/recommended',
+  ],
+  ignorePatterns: ['dist', '.eslintrc.cjs'],
+  parser: '@typescript-eslint/parser',
+  plugins: ['react-refresh'],
+  rules: {
+    'react-refresh/only-export-components': [
+      'warn',
+      { allowConstantExport: true },
+    ],
+  },
+}
+```
+
+#### Development Scripts
+
+**Backend Development:**
+```bash
+# Start development server with hot reload
+npm run dev
+
+# Start production server
+npm start
+
+# Run linting
+npm run lint
+
+# Fix linting issues
+npm run lint:fix
+
+# Run tests
+npm test
+
+# Generate API documentation
+npm run docs
+```
+
+**Frontend Development:**
+```bash
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Run type checking
+npm run type-check
+
+# Run linting
+npm run lint
+```
+
+### 🐛 Debugging
+
+#### Backend Debugging
+
+```javascript
+// Enable debug logging
+process.env.DEBUG = 'safetalk:*';
+
+// Debug specific modules
+process.env.DEBUG = 'safetalk:auth,safetalk:socket';
+
+// VS Code launch.json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/server/src/server.js",
+      "env": {
+        "NODE_ENV": "development",
+        "DEBUG": "safetalk:*"
+      },
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}
+```
+
+#### Frontend Debugging
+
+```typescript
+// Enable debug mode in development
+if (import.meta.env.DEV) {
+  window.safetalkDebug = {
+    auth: () => console.log('Auth state:', useAuth()),
+    socket: () => console.log('Socket state:', useSocket()),
+    crypto: {
+      testEncryption: () => {
+        // Test encryption/decryption
+      }
+    }
+  };
+}
+```
+
+### 📝 Code Style Guide
+
+#### TypeScript Guidelines
+
+```typescript
+// Use explicit types
+interface UserProfile {
+  id: string;
+  username: string;
+  email: string;
+  lastLogin?: Date;
+}
+
+// Use enums for constants
+enum MessageStatus {
+  SENT = 'sent',
+  DELIVERED = 'delivered',
+  READ = 'read'
+}
+
+// Use async/await over Promises
+const fetchUser = async (id: string): Promise<UserProfile> => {
+  try {
+    const response = await api.get(`/users/${id}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch user: ${error.message}`);
+  }
+};
+```
+
+#### Component Guidelines
+
+```tsx
+// Use functional components with TypeScript
+interface ChatMessageProps {
+  message: Message;
+  isOwn: boolean;
+  onDelete?: (messageId: string) => void;
+}
+
+const ChatMessage: React.FC<ChatMessageProps> = ({
+  message,
+  isOwn,
+  onDelete
+}) => {
+  // Component implementation
+  return (
+    <div className={`message ${isOwn ? 'own' : 'other'}`}>
+      {/* Message content */}
+    </div>
+  );
+};
+
+export default ChatMessage;
+```
+
+### 🔄 Git Workflow
+
+#### Branching Strategy
+
+```bash
+# Main branches
+main          # Production-ready code
+develop       # Development branch
+
+# Feature branches
+feature/auth-improvements
+feature/message-reactions
+feature/group-chat
+
+# Hotfix branches
+hotfix/security-patch
+hotfix/critical-bug-fix
+```
+
+#### Commit Convention
+
+```bash
+# Commit message format
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+
+# Examples
+feat(auth): add two-factor authentication
+fix(chat): resolve message ordering issue
+docs(readme): update installation instructions
+test(crypto): add encryption unit tests
+refactor(api): improve error handling
+```
+
+---
+
+## 🔄 Changelog
+
+### Version 1.0.0 (November 2025)
+
+#### 🎉 Initial Release
+- ✅ Complete authentication system with JWT and 2FA
+- ✅ End-to-end encrypted messaging
+- ✅ Real-time communication with Socket.io
+- ✅ Admin panel with user management
+- ✅ Responsive UI with modern design
+- ✅ Production-ready security features
+
+#### 🔧 Technical Stack
+- ✅ React 19.2.0 with TypeScript
+- ✅ Node.js with Express.js backend
+- ✅ MongoDB with Mongoose ODM
+- ✅ Socket.io for real-time features
+- ✅ Vite 7.1.9 for development and building
+- ✅ Tailwind CSS 4.1.14 for styling
+
+#### 🛡️ Security Features
+- ✅ RSA-2048 + AES-256-GCM encryption
+- ✅ Argon2id password hashing
+- ✅ Rate limiting and account lockout
+- ✅ Security headers with Helmet.js
+- ✅ CSRF protection and input validation
+
+#### 📚 Documentation
+- ✅ Comprehensive README with setup instructions
+- ✅ API documentation with examples
+- ✅ Security architecture explanations
+- ✅ Deployment guides for multiple platforms
+
+### Upcoming Features (Roadmap)
+
+#### 🔮 Version 1.1.0 (Planned)
+- 🔄 Group chat functionality
+- 🔄 File and image sharing
+- 🔄 Message reactions and replies
+- 🔄 Push notifications
+- 🔄 Mobile app (React Native)
+
+#### 🔮 Version 1.2.0 (Planned)
+- 🔄 Video and voice calls
+- 🔄 Screen sharing
+- 🔄 Message search and archiving
+- 🔄 Backup and export features
+- 🔄 Advanced admin analytics
+
+#### 🔮 Version 2.0.0 (Future)
+- 🔄 Federated messaging (ActivityPub)
+- 🔄 Blockchain-based identity verification
+- 🔄 Advanced cryptographic features
+- 🔄 Self-hosted server clustering
+- 🔄 Enterprise features
+
+---
 
 ### Technologies & Libraries
 

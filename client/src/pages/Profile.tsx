@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Shield, Mail, User as UserIcon, Calendar, Key } from 'lucide-react';
+import { ArrowLeft, Save, Shield, Mail, User as UserIcon, Calendar, Key ,UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { userAPI } from '../utils/api';
 import toast from 'react-hot-toast';
@@ -237,7 +237,7 @@ const Profile = () => {
               <div className="flex items-end space-x-4">
                 <div className="w-32 h-32 bg-white rounded-full border-4 border-white shadow-lg flex items-center justify-center">
                   <span className="text-5xl font-bold text-green-600">
-                    {profile?.username?.charAt(0).toUpperCase()}
+                    <UserRound className="w-16 h-16" />
                   </span>
                 </div>
                 <div className="mb-4">
@@ -572,12 +572,12 @@ const Profile = () => {
               <span className="text-gray-600">Last Login</span>
               <span className="font-medium text-gray-900">{formatDate(profile?.lastLogin)}</span>
             </div>
-            <div className="flex justify-between py-2">
+            {/* <div className="flex justify-between py-2">
               <span className="text-gray-600">Email Verified</span>
               <span className="font-medium text-gray-900">
                 {profile?.isEmailVerified ? '✓ Yes' : '✗ No'}
               </span>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

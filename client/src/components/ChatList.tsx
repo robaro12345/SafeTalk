@@ -239,13 +239,13 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedChatId, onNew
                       <span>Admin Panel</span>
                     </button>
                   )}
-                  <button 
+                  {/* <button 
                     onClick={() => handleUserMenuClick('settings')}
                     className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center space-x-2 text-gray-700"
                   >
                     <Settings className="w-4 h-4" />
                     <span>Settings</span>
-                  </button>
+                  </button> */}
                   <hr className="border-gray-200" />
                   <button 
                     onClick={() => handleUserMenuClick('logout')}
