@@ -553,6 +553,127 @@ const AdminPanel: React.FC = () => {
     </div>
   );
 
+  const renderLineChart = (data: Array<{ _id: string; count: number }>, color: string) => {
+    if (data.length === 0) return null;
+
+    const maxValue = Math.max(...data.map(d => d.count));
+    const chartHeight = 200;
+    const chartWidth = 800;
+    const padding = { top: 20, right: 30, bottom: 60, left: 50 };
+    const innerWidth = chartWidth - padding.left - padding.right;
+    const innerHeight = chartHeight - padding.top - padding.bottom;
+
+    const points = data.map((d, i) => {
+      const x = padding.left + (i / (data.length - 1 || 1)) * innerWidth;
+      const y = padding.top + innerHeight - (d.count / (maxValue || 1)) * innerHeight;
+      return { x, y, count: d.count, date: d._id };
+    });
+
+    const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    const areaD = `${pathD} L ${points[points.length - 1].x} ${chartHeight - padding.bottom} L ${padding.left} ${chartHeight - padding.bottom} Z`;
+
+    return (
+      <div className="overflow-x-auto">
+        <svg width={chartWidth} height={chartHeight} className="mx-auto">
+          {/* Grid lines */}
+          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
+            <line
+              key={ratio}
+              x1={padding.left}
+              y1={padding.top + innerHeight * (1 - ratio)}
+              x2={chartWidth - padding.right}
+              y2={padding.top + innerHeight * (1 - ratio)}
+              stroke="#e5e7eb"
+              strokeWidth="1"
+            />
+          ))}
+
+          {/* Area under the line */}
+          <path
+            d={areaD}
+            fill={`url(#gradient-${color})`}
+            opacity="0.2"
+          />
+
+          {/* Line */}
+          <path
+            d={pathD}
+            fill="none"
+            stroke={color}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {/* Data points */}
+          {points.map((p, i) => (
+            <g key={i}>
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r="5"
+                fill="white"
+                stroke={color}
+                strokeWidth="3"
+              />
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r="8"
+                fill="transparent"
+                className="cursor-pointer hover:fill-gray-100 transition-all"
+              >
+                <title>{`${new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}: ${p.count}`}</title>
+              </circle>
+            </g>
+          ))}
+
+          {/* Y-axis labels */}
+          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
+            <text
+              key={ratio}
+              x={padding.left - 10}
+              y={padding.top + innerHeight * (1 - ratio)}
+              textAnchor="end"
+              alignmentBaseline="middle"
+              fontSize="12"
+              fill="#6b7280"
+            >
+              {Math.round(maxValue * ratio)}
+            </text>
+          ))}
+
+          {/* X-axis labels */}
+          {points.map((p, i) => {
+            const showLabel = data.length <= 10 || i % Math.ceil(data.length / 10) === 0;
+            if (!showLabel) return null;
+            return (
+              <text
+                key={i}
+                x={p.x}
+                y={chartHeight - padding.bottom + 20}
+                textAnchor="middle"
+                fontSize="11"
+                fill="#6b7280"
+                transform={`rotate(-45, ${p.x}, ${chartHeight - padding.bottom + 20})`}
+              >
+                {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              </text>
+            );
+          })}
+
+          {/* Gradient definitions */}
+          <defs>
+            <linearGradient id={`gradient-${color}`} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor={color} stopOpacity="0.4" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+    );
+  };
+
   const renderAnalytics = () => (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">Analytics (Last 30 Days)</h2>
@@ -565,21 +686,7 @@ const AdminPanel: React.FC = () => {
               User Growth
             </h3>
             {analytics.userGrowth.length > 0 ? (
-              <div className="flex items-end justify-between h-64 gap-2 overflow-x-auto">
-                {analytics.userGrowth.map((data: any) => (
-                  <div key={data._id} className="flex flex-col items-center min-w-[60px]">
-                    <div 
-                      className="w-full bg-gradient-to-t from-green-500 to-green-400 rounded-t-lg flex items-start justify-center pt-2 transition-all hover:opacity-80" 
-                      style={{ height: `${Math.max(data.count * 40, 20)}px` }}
-                    >
-                      <span className="text-white text-xs font-semibold">{data.count}</span>
-                    </div>
-                    <div className="text-xs text-gray-600 mt-2 transform -rotate-45 origin-top-left whitespace-nowrap">
-                      {new Date(data._id).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              renderLineChart(analytics.userGrowth, '#22c55e')
             ) : (
               <div className="text-center py-8 text-gray-500">
                 <BarChart3 className="w-12 h-12 mx-auto mb-2 text-gray-400" />
@@ -594,21 +701,7 @@ const AdminPanel: React.FC = () => {
               Message Activity
             </h3>
             {analytics.messageActivity.length > 0 ? (
-              <div className="flex items-end justify-between h-64 gap-2 overflow-x-auto">
-                {analytics.messageActivity.map((data: any) => (
-                  <div key={data._id} className="flex flex-col items-center min-w-[60px]">
-                    <div 
-                      className="w-full bg-gradient-to-t from-blue-500 to-blue-400 rounded-t-lg flex items-start justify-center pt-2 transition-all hover:opacity-80" 
-                      style={{ height: `${Math.min(data.count / 2, 200)}px`, minHeight: '20px' }}
-                    >
-                      <span className="text-white text-xs font-semibold">{data.count}</span>
-                    </div>
-                    <div className="text-xs text-gray-600 mt-2 transform -rotate-45 origin-top-left whitespace-nowrap">
-                      {new Date(data._id).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              renderLineChart(analytics.messageActivity, '#3b82f6')
             ) : (
               <div className="text-center py-8 text-gray-500">
                 <MessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-400" />

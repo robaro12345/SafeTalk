@@ -40,6 +40,7 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedChatId, onNew
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Load conversations
@@ -57,7 +58,7 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedChatId, onNew
     }
   }, [searchTerm]);
 
-  // Listen for new messages via socket
+  // Listen for new messages and user status via socket
   useEffect(() => {
     if (!socket.isConnected) return;
 
@@ -83,12 +84,45 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedChatId, onNew
       loadConversations();
     };
 
+    // Handle user coming online
+    const handleUserOnline = (data) => {
+      setOnlineUsers(prev => new Set([...prev, data.userId]));
+    };
+
+    // Handle user going offline
+    const handleUserOffline = (data) => {
+      setOnlineUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(data.userId);
+        return newSet;
+      });
+    };
+
+    // Handle user status list (when requested)
+    const handleUserStatusList = (statusList) => {
+      const onlineUserIds = statusList
+        .filter(status => status.isOnline)
+        .map(status => status.userId);
+      setOnlineUsers(new Set(onlineUserIds));
+    };
+
     // Register socket listeners
     socket.onNewMessage(handleNewMessage);
     socket.onMessageSent(handleMessageSent);
+    socket.onUserOnline(handleUserOnline);
+    socket.onUserOffline(handleUserOffline);
+    socket.onUserStatusList(handleUserStatusList);
+
+    // Request status for all conversation users when socket connects
+    if (conversations.length > 0) {
+      const userIds = conversations.map(conv => conv.otherUser.id).filter(Boolean);
+      if (userIds.length > 0) {
+        socket.getUserStatus(userIds);
+      }
+    }
 
     // Cleanup handled by useSocket hook
-  }, [socket.isConnected, selectedChatId, user.id]);
+  }, [socket.isConnected, selectedChatId, user.id, conversations]);
 
   const loadConversations = async () => {
     try {
@@ -287,10 +321,14 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedChatId, onNew
                   onClick={() => handleChatSelect(user)}
                   className="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
                 >
-                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                  <div className="relative w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
                     <span className="font-semibold text-green-600">
                       {user.username.charAt(0).toUpperCase()}
                     </span>
+                    {/* Online status indicator */}
+                    <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
+                      onlineUsers.has(user.id) ? 'bg-green-500' : 'bg-gray-400'
+                    }`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-gray-900 truncate">
@@ -323,10 +361,14 @@ const ChatList: React.FC<ChatListProps> = ({ onSelectChat, selectedChatId, onNew
                       : 'border-l-transparent'
                   }`}
                 >
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                  <div className="relative w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
                     <span className="font-semibold text-green-600 text-lg">
                       {conversation.otherUser.username.charAt(0).toUpperCase()}
                     </span>
+                    {/* Online status indicator */}
+                    <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white ${
+                      onlineUsers.has(conversation.otherUser.id) ? 'bg-green-500' : 'bg-gray-400'
+                    }`} />
                   </div>
                   
                   <div className="flex-1 min-w-0">

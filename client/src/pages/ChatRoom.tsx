@@ -19,6 +19,7 @@ const ChatRoom = () => {
   const [messages, setMessages] = useState([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [typingUsers, setTypingUsers] = useState(new Set());
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
   
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -76,6 +77,9 @@ const ChatRoom = () => {
   // Join conversation room
   socket.joinConversation(normalizedId);
 
+  // Request user status
+  socket.getUserStatus([normalizedId]);
+
   // Load conversation history
   await loadMessages(normalizedId);
     } catch (error) {
@@ -93,7 +97,7 @@ const ChatRoom = () => {
   const loadMessages = async (userId) => {
     try {
       setIsLoadingMessages(true);
-      const response = await messageAPI.getConversation(userId);
+      const response = await messageAPI.getConversation(userId, {});
       const conversationMessages = response.data.data.messages;
       // Messages stored on server are ciphertext (RSA-OAEP base64). Attempt to decrypt each message.
       const privateKeyJwk = getEncryptionKeys();
@@ -217,7 +221,7 @@ const ChatRoom = () => {
       }
 
       const messageData = {
-        receiverId,
+        recipientId: receiverId,
         content: receiverCiphertext,
         senderEncryptedContent: senderCiphertext,
         messageType: 'text',
@@ -373,12 +377,37 @@ const ChatRoom = () => {
       );
     };
 
+    // Handle user coming online
+    const handleUserOnline = (data) => {
+      setOnlineUsers(prev => new Set([...prev, data.userId]));
+    };
+
+    // Handle user going offline
+    const handleUserOffline = (data) => {
+      setOnlineUsers(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(data.userId);
+        return newSet;
+      });
+    };
+
+    // Handle user status list
+    const handleUserStatusList = (statusList) => {
+      const onlineUserIds = statusList
+        .filter(status => status.isOnline)
+        .map(status => status.userId);
+      setOnlineUsers(new Set(onlineUserIds));
+    };
+
     // Register socket event listeners
     socket.onNewMessage(handleNewMessage);
     socket.onMessageSent(handleMessageSent);
     socket.onMessageError(handleMessageError);
     socket.onUserTyping(handleUserTyping);
     socket.onMessageReadReceipt(handleMessageReadReceipt);
+    socket.onUserOnline(handleUserOnline);
+    socket.onUserOffline(handleUserOffline);
+    socket.onUserStatusList(handleUserStatusList);
 
     return () => {
       // Cleanup is handled by the socket hook
@@ -400,10 +429,14 @@ const ChatRoom = () => {
             {/* Chat Header */}
             <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
               <div className="flex items-center">
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                <div className="relative w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
                   <span className="font-semibold text-green-600">
                     {selectedChat.username.charAt(0).toUpperCase()}
                   </span>
+                  {/* Online status indicator */}
+                  <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
+                    onlineUsers.has(selectedChat.id) ? 'bg-green-500' : 'bg-gray-400'
+                  }`} />
                 </div>
                 <div>
                   <h2 className="font-semibold text-gray-900">{selectedChat.username}</h2>
@@ -413,7 +446,9 @@ const ChatRoom = () => {
                         {Array.from(typingUsers).join(', ')} typing...
                       </span>
                     ) : (
-                      'Online'
+                      <span className={onlineUsers.has(selectedChat.id) ? 'text-green-600' : 'text-gray-500'}>
+                        {onlineUsers.has(selectedChat.id) ? 'Online' : 'Offline'}
+                      </span>
                     )}
                   </p>
                 </div>
