@@ -3,7 +3,7 @@ import socketService from '../utils/socket';
 import { useAuth } from '../context/AuthContext';
 
 interface MessageData {
-  recipientId: string;
+  receiverId: string;
   content: string;
   messageType?: string;
 }

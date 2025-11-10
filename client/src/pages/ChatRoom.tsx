@@ -221,7 +221,7 @@ const ChatRoom = () => {
       }
 
       const messageData = {
-        recipientId: receiverId,
+        receiverId: receiverId,
         content: receiverCiphertext,
         senderEncryptedContent: senderCiphertext,
         messageType: 'text',
