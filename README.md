@@ -4,7 +4,7 @@
 
 ![SafeTalk Logo](https://img.shields.io/badge/SafeTalk-Secure%20Messaging-green?style=for-the-badge&logo=shield&logoColor=white)
 
-**A production-ready, full-stack MERN secure chat application with military-grade end-to-end encryption, JWT authentication, and mandatory two-factor authentication (2FA)**
+**A production-ready, full-stack MERN secure chat application with end-to-end encryption, JWT authentication, and mandatory two-factor authentication (2FA)**
 
 [![React](https://img.shields.io/badge/React-19.2.0-61DAFB?logo=react&logoColor=white)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
