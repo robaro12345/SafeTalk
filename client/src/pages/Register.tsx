@@ -47,7 +47,8 @@ const Register = () => {
       return;
     }
 
-    const { confirmPassword, ...registrationData } = formData;
+    const { confirmPassword, ...rest } = formData;
+    const registrationData: any = { ...rest };
 
     // Generate RSA key pair client-side and attach publicKey to registration payload
     try {

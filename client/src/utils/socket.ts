@@ -1,7 +1,13 @@
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import toast from 'react-hot-toast';
 
 class SocketService {
+  socket: Socket | null;
+  isConnected: boolean;
+  listeners: Map<string, Function[]>;
+  hasShownInitialConnection: boolean;
+  eventListenersSetup: boolean;
+
   constructor() {
     this.socket = null;
     this.isConnected = false;
@@ -11,7 +17,7 @@ class SocketService {
   }
 
   // Initialize socket connection
-  connect(token) {
+  connect(token?: string): Socket | undefined {
     if (this.socket?.connected) {
       return this.socket;
     }
@@ -155,7 +161,7 @@ class SocketService {
   }
 
   // Event listener management
-  on(eventName, callback) {
+  on(eventName: string, callback: (...args: any[]) => void): void {
     if (this.socket) {
       this.socket.on(eventName, callback);
       
@@ -167,7 +173,7 @@ class SocketService {
     }
   }
 
-  off(eventName, callback) {
+  off(eventName: string, callback: (...args: any[]) => void): void {
     if (this.socket) {
       this.socket.off(eventName, callback);
       
@@ -183,7 +189,7 @@ class SocketService {
   }
 
   // Remove all listeners for an event
-  removeAllListeners(eventName) {
+  removeAllListeners(eventName: string): void {
     if (this.socket) {
       this.socket.removeAllListeners(eventName);
       this.listeners.delete(eventName);
@@ -191,7 +197,7 @@ class SocketService {
   }
 
   // Emit custom event
-  emit(eventName, data) {
+  emit(eventName: string, data?: any): void {
     if (this.socket) {
       this.socket.emit(eventName, data);
     }

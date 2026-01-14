@@ -131,7 +131,7 @@ const Setup2FA = () => {
                 alt="TOTP QR Code"
                 className="w-48 h-48 rounded-lg"
                 onError={(e) => {
-                  e.target.style.display = 'none';
+                  (e.target as HTMLImageElement).style.display = 'none';
                   toast.error('Failed to load QR code');
                 }}
               />
