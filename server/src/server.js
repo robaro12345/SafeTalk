@@ -60,7 +60,8 @@ app.use(cors({
     const allowedOrigins = [
       config.clientUrl, 
       'http://localhost:5173', 
-      'http://127.0.0.1:5173'
+      'http://127.0.0.1:5173',
+'https://safe-talk-one.vercel.app'
     ];
     
     // Allow requests with no origin (like mobile apps or curl requests)
